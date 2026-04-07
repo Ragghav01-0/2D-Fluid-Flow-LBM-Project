@@ -1,4 +1,16 @@
 import taichi as ti
 ti.init(arch=ti.gpu) # Defines whether cpu or gpu is being used
 
-print(f"Current Backend: {ti.lang.impl.current_cfg().arch}")
+# Lattice dimensions
+nx = 512
+ny = 256
+
+# discrete velocities(f), density(rho) and velocity(u)
+f = ti.Vector.field(9, dtype=ti.f32, shape=(nx, ny))
+rho = ti.field(dtype=ti.f32, shape=(nx, ny))
+u = ti.Vector.field(2, dtype=ti.f32, shape=(nx, ny))
+
+# weights(w), directions(e)
+w = (4/9, 1/9, 1/9, 1/9, 1/9, 1/36, 1/36, 1/36, 1/36)
+e_values = ((0,0), (1,0), (0,-1), (-1,0), (0,1), (1,-1), (-1,-1), (-1,1), (1,1))
+e = ti.static([ti.Vector(i) for i in e_values])
