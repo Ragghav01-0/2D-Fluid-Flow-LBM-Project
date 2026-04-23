@@ -1,4 +1,3 @@
-import taichi as ti
 from fields import *
 
 @ti.kernel

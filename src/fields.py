@@ -15,3 +15,7 @@ e_values = ((0,0), (1,0), (0,-1), (-1,0), (0,1), (1,-1), (-1,-1), (-1,1), (1,1))
 e_vector = ti.static([ti.Vector(i) for i in e_values])
 e_static = ti.static(e_vector)
 w_static = ti.static(w)
+
+# collision stuff
+# tau = ti.field(dtype=ti.f32, shape=(nx, ny))
+tau=0.8

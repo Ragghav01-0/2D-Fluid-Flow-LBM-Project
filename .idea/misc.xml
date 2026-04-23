@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.13 (FluidFlow_LBM_GpuAcceleration)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 (FluidFlow_LBM_GpuAcceleration)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 (2D-Fluid-Flow-LBM-Project) (2)" project-jdk-type="Python SDK" />
 </project>
