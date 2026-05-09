@@ -1,5 +1,5 @@
 import taichi as ti
-ti.init(arch=ti.gpu) # Defines whether cpu or gpu is being used
+ti.init(arch=ti.cpu) # Defines whether cpu or gpu is being used
 
 # Imports kernels from the different files
 from Initialization import initial_fluid

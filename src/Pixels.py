@@ -1,6 +1,5 @@
 from Fields import *
 
-#
 @ti.kernel
 def updating_pixels():
     for x, y in ti.ndrange(nx, ny):
@@ -10,4 +9,4 @@ def updating_pixels():
         else:
             # Color of fluid
             val = u[x, y].norm()
-            pixels[x, y] = val * 5
+            pixels[x, y] = val * 15

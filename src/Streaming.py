@@ -9,8 +9,8 @@ def streaming():
 
             if mask[x,y] == 0:
                 if mask[xn, yn] == 0:
-                    f_new[x, y][i] = f[xn, yn][i]
+                    f_new[x, y][i] = f[xn, yn][i] # normal streaming
                 else:
-                    f_new[x, y][i] = f[x, y][e_opp[i]]
+                    f_new[x, y][i] = f[x, y][e_opp[i]] # bounce-back
             else:
-                f_new[x, y][i] = 0.0
+                f_new[x, y][i] = 0.0 # bounce-back?

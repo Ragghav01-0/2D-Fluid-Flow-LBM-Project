@@ -19,6 +19,9 @@ e_values = ((0,0), (1,0), (0,-1), (-1,0), (0,1), (1,-1), (-1,-1), (-1,1), (1,1))
 e_vector = [ti.Vector(i) for i in e_values]
 e_static = ti.static(e_vector)
 
+# Relaxation time (tau)
+tau = 1.5
+
 # opposite directions
 e_opp = (0, 3, 4, 1, 2, 7, 8, 5, 6)
 
