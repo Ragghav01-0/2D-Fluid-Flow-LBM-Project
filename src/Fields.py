@@ -1,7 +1,7 @@
 import taichi as ti
 
 # Lattice dimensions
-nx = 512
+nx = 2048
 ny = 256
 
 # discrete velocities(f), density(rho) and velocity(u)
@@ -20,7 +20,7 @@ e_vector = [ti.Vector(i) for i in e_values]
 e_static = ti.static(e_vector)
 
 # Relaxation time (tau)
-tau = 1.5
+tau = 0.8
 
 # opposite directions
 e_opp = (0, 3, 4, 1, 2, 7, 8, 5, 6)

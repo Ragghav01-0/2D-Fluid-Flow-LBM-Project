@@ -9,4 +9,4 @@ def updating_pixels():
         else:
             # Color of fluid
             val = u[x, y].norm()
-            pixels[x, y] = val * 15
+            pixels[x, y] = val * 125

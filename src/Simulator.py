@@ -1,5 +1,6 @@
 import taichi as ti
-ti.init(arch=ti.cpu) # Defines whether cpu or gpu is being used
+import numpy as np
+ti.init(arch=ti.gpu) # Defines whether cpu or gpu is being used
 
 # Imports kernels from the different files
 from Initialization import initial_fluid
@@ -31,3 +32,11 @@ while gui.running:
     updating_pixels()
     gui.set_image(pixels)
     gui.show()
+
+num = []
+
+for i in ti.static(range(ny)):
+    num.append(round(u[2045, i][0], 5))
+
+velocity = np.array(num)
+np.savetxt("velocity_2045.csv", velocity, delimiter=",", fmt="%f")
