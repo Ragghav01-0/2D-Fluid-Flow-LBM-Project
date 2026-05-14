@@ -33,10 +33,10 @@ while gui.running:
     gui.set_image(pixels)
     gui.show()
 
-num = []
+v2045 = []
 
 for i in ti.static(range(ny)):
-    num.append(round(u[2045, i][0], 5))
+    v2045.append(round(u[2045, i][0], 5))
 
-velocity = np.array(num)
+velocity = np.array(v2045)
 np.savetxt("velocity_2045.csv", velocity, delimiter=",", fmt="%f")

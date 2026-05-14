@@ -1,4 +1,5 @@
 import taichi as ti
+ti.init(arch=ti.gpu)
 
 # Lattice dimensions
 nx = 2048
@@ -30,3 +31,6 @@ mask = ti.field(dtype=ti.f32, shape=(nx, ny))
 
 # initializes pixels for GUI
 pixels = ti.field(dtype=ti.f32, shape=(nx, ny))
+
+# max velocity
+u_max = ti.Vector([0.005, 0.0])

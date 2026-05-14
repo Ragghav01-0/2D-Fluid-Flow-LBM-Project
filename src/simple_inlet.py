@@ -4,7 +4,6 @@ from Fields import *
 @ti.kernel
 def simple_inlet():
     for j in range(ny):
-        u_max = ti.Vector([0.005, 0.0])
         rho_inlet = 1.0
         u_inlet = 4 * u_max * (j * (ny - j)) / (ny ** 2)
 
