@@ -9,8 +9,8 @@ This is further accelerated using the Python library taichi Lang to implement GP
   * **Numpy**: Used for Data Handling.
   * **Matplotlib**: Used for data visualization and plots/ graphs.
 
-**Current Progress**
-*Status: Working on next phase.*
+**Current Status**
+*Working on next phase.*
 
 *Current Progress:*
 ![image_1.png](image_1.png)
