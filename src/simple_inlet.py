@@ -5,7 +5,7 @@ from Fields import *
 def simple_inlet():
     for j in range(ny):
         rho_inlet = 1.0
-        u_inlet = 4 * u_max * (j * (ny - j)) / (ny ** 2)
+        u_inlet = 6.7 * u_max * (j * (ny - j)) / (ny ** 2)
 
         for k in ti.static(range(9)):
             # Recalculate equilibrium for the wall

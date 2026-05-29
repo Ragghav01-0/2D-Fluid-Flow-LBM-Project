@@ -22,6 +22,7 @@ e_static = ti.static(e_vector)
 
 # Relaxation time (tau)
 tau = 0.8
+nu = (tau - 0.5) / 3
 
 # opposite directions
 e_opp = (0, 3, 4, 1, 2, 7, 8, 5, 6)

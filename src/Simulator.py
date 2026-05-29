@@ -12,13 +12,15 @@ from Pixels import updating_pixels
 from Collision import collide
 from simple_inlet import *
 from simple_outlet import *
+from Reynolds_num import calc_reynolds
 
 # Sets the initial fluid state and obstacle
 initialize_object()
 initial_fluid()
+print("Reynolds number: ", calc_reynolds())
 gui = ti.GUI("LBM Simulation", res=(nx, ny))
 
-# While to keep updating the simulation
+# While loop to keep updating the simulation
 while gui.running:
     collide()
     streaming()
@@ -33,10 +35,11 @@ while gui.running:
     gui.set_image(pixels)
     gui.show()
 
-v2045 = []
-
-for i in ti.static(range(ny)):
-    v2045.append(round(u[2045, i][0], 5))
-
-velocity = np.array(v2045)
-np.savetxt("velocity_2045.csv", velocity, delimiter=",", fmt="%f")
+# Saving Velocity values at node 2045
+# v2045 = []
+#
+# for i in ti.static(range(ny)):
+#     v2045.append(round(u[2045, i][0], 5))
+#
+# velocity = np.array(v2045)
+# np.savetxt("velocity_2045_test.csv", velocity, delimiter=",", fmt="%f")

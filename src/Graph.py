@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from Fields import *
 
-velocity = np.loadtxt('velocity_2045.csv', delimiter=',', skiprows=1)
+velocity_test = np.loadtxt('velocity_2045_test.csv', delimiter=',', skiprows=1)
 height = [x for x in range(255)]
 
 # Analytical Solution
@@ -16,7 +16,7 @@ for y in range(ny-1):
 
 max = np.max(velocity3)
 
-plt.plot(velocity, height, color='red', ls="-", label="Velocity Profile at node 2045")
+plt.plot(velocity_test, height, color='red', ls="-", label="Velocity Profile at node 2045 (test)")
 plt.plot( velocity3, height, color='g', ls="-.", label="Analytical Velocity Profile")
 
 plt.xlabel("Velocity")

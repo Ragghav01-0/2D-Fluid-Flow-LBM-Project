@@ -11,7 +11,7 @@ def initial_fluid():
             u[i, j] = ti.Vector([0.0, 0.0])
         else:
             rho[i,j] = 1.0
-            u[i, j] = ti.Vector([0.001,0.0])
+            u[i, j] = ti.Vector([0.00,0.0])
 
         u2 = u[i, j].dot(u[i, j])
         for k in ti.static(range(9)): # loops over all the 9 directions

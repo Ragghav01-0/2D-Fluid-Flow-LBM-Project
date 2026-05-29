@@ -7,10 +7,11 @@ def streaming():
         for i in ti.static(range(9)):
             xn, yn = (x-e_static[i][0] + nx) % nx, (y-e_static[i][1] + ny) % ny
 
+            # No-slip Bounce back Condition
             if mask[x,y] == 0:
                 if mask[xn, yn] == 0:
-                    f_new[x, y][i] = f[xn, yn][i] # normal streaming
+                    f_new[x, y][i] = f[xn, yn][i]
                 else:
-                    f_new[x, y][i] = f[x, y][e_opp[i]] # bounce-back
+                    f_new[x, y][i] = f[x, y][e_opp[i]]
             else:
-                f_new[x, y][i] = 0.0 # bounce-back?
+                f_new[x, y][i] = 0.0
