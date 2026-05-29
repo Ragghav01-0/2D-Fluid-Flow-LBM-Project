@@ -1,7 +1,7 @@
 **Goal**: To build a 2D fluid flow simulation using Lattice-Boltzmann Method (LBM) to simulate the flow of fluids of varying densities and speed around different objects.
 This is further accelerated using the Python library taichi Lang to implement GPU acceleration.
 
-**Scientific Objective**: "Using LBM simulator to find the effects of varying plaque buildup on cardiovascular diseases in arteries." 
+**Scientific Objective**: "Using LBM simulator to find the effects of varying plaque buildup, in arteries, on cardiovascular diseases." 
 
 **Technologies**
   * **Python**: Main programming language
@@ -10,10 +10,10 @@ This is further accelerated using the Python library taichi Lang to implement GP
   * **Matplotlib**: Used for data visualization and plots/ graphs.
 
 **Current Progress**
-*Status: Debugging*
-Currently validating the solver against analytical Poiseuille flow solutions.
+*Status: Working on next phase.*
 
-![img_2.png](img_2.png)
+*Current Progress:*
+![image_1.png](image_1.png)
 
 **Project Roadmap**
   1. **Phase 1**: Foundations
