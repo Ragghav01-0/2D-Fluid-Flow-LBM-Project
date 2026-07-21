@@ -1,6 +1,7 @@
 #ollision Using Two-Relaxation-Time
 from Fields import *
-
+e_opp = (0, 3, 4, 1, 2, 7, 8, 5, 6)
+e_opp_static = ti.static(e_opp)
 @ti.kernel
 def collide():
     for i, j in ti.ndrange(nx, ny):
