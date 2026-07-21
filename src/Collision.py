@@ -2,7 +2,9 @@
 from Fields import *
 e_opp = (0, 3, 4, 1, 2, 7, 8, 5, 6)
 e_opp_static = ti.static(e_opp)
-
+tau_s = 0.8
+lambda_magic = 3.0 / 16.0
+tau_a = 0.5 + lambda_magic / (tau_s - 0
 omega_s = 1.0 / tau_s                  
 omega_a = 1.0 / tau_a
 @ti.kernel
