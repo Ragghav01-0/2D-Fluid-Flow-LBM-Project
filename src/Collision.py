@@ -1,5 +1,5 @@
 import taichi as ti
-from Fields import f, rho, u, nx, ny
+from Fields import *
 
 # --- TRT Relaxation Parameters ---
 tau_s = 0.8
