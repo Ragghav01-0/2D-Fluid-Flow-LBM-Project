@@ -4,8 +4,9 @@ from Fields import *
 @ti.kernel
 def macro_update():
     for i, j in ti.ndrange(nx, ny):
-        if mask[i, 0] == 1.0 and mask[i, ny-1] == 1.0:
-            pass
+        if mask[i, j] == 1:
+            u[i, j] = ti.Vector([0.0, 0.0])
+            rho[i, j] = 0.0
         else:
             new_rho = 0.0
             new_u = ti.Vector([0.0, 0.0])

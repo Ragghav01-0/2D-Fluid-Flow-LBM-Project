@@ -1,6 +1,5 @@
 import taichi as ti
-import numpy as np
-ti.init(arch=ti.gpu) # Defines whether cpu or gpu is being used
+ti.init(arch=ti.cpu) # Defines whether cpu or gpu is being used
 
 # Imports kernels from the different files
 from Initialization import initial_fluid
@@ -11,7 +10,6 @@ from Pixels import updating_pixels
 from Collision_and_Stream import *
 from Zou_he_inlet import *
 from Zou_he_outlet import *
-
 
 # Sets the initial fluid state and obstacle
 initialize_object()
@@ -29,8 +27,9 @@ while gui.running:
 
     swap()
 
-    updating_pixels()
-    gui.set_image(pixels)
-    gui.show()
+    if time[None] % 10 == 0:
+        updating_pixels()
+        gui.set_image(pixels)
+        gui.show()
 
-# Saving Velocity values at nod
+    time[None] += 1

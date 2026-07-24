@@ -2,7 +2,7 @@ import taichi as ti
 ti.init(arch=ti.gpu)
 
 # Lattice dimensions
-nx = 2048
+nx = 1024
 ny = 256
 
 # discrete velocities(f), density(rho) and velocity(u)
@@ -16,13 +16,9 @@ w = (4/9, 1/9, 1/9, 1/9, 1/9, 1/36, 1/36, 1/36, 1/36)
 w_static = ti.static(w)
 
 # directions(e)
-e_values = ((0,0), (1,0), (0,-1), (-1,0), (0,1), (1,-1), (-1,-1), (-1,1), (1,1))
+e_values = ((0,0), (1,0), (0,1), (-1,0), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1))
 e_vector = [ti.Vector(i) for i in e_values]
 e_static = ti.static(e_vector)
-
-# Relaxation time (tau)
-tau = 0.8
-nu = (tau - 0.5) / 3
 
 # opposite directions
 e_opp = (0, 3, 4, 1, 2, 7, 8, 5, 6)
@@ -31,19 +27,24 @@ e_opp = (0, 3, 4, 1, 2, 7, 8, 5, 6)
 mask = ti.field(dtype=ti.f32, shape=(nx, ny))
 
 # initializes pixels for GUI
-pixels = ti.field(dtype=ti.f32, shape=(nx, ny))
+pixels = ti.Vector.field(3, dtype=ti.f32, shape=(nx, ny))
 
 # max velocity
-u_max = ti.Vector([0.005, 0.0])
+u_max = ti.Vector([0.05, 0.0])
 
-# --- TRT Relaxation Parameters ---
-tau_s = 0.8
-lambda_magic = 1.0 / 4.0
-tau_a = 0.5 + lambda_magic / (tau_s - 0.5)
+# Reynolds number, kinematic viscosity, tau
+re = 125
 
-omega_s = 1.0 / tau_s
-omega_a = 1.0 / tau_a
+nyf = float(ny)
+u_m1 = u_max.norm()
+u_f = (2/3) * float(u_m1)
 
-w0 = 4.0 / 9.0
-w_straight = 1.0 / 9.0
-w_diag = 1.0 / 36.0
+nu = (u_f * nyf) / re
+tau = 0.54 #(3 * nu) + 0.5
+
+time = ti.field(dtype=ti.i32, shape=())
+
+# Pulsate model parameters
+U0 = 0.05
+A = 0.02
+omega = 0.01
