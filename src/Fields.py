@@ -35,3 +35,15 @@ pixels = ti.field(dtype=ti.f32, shape=(nx, ny))
 
 # max velocity
 u_max = ti.Vector([0.005, 0.0])
+
+# --- TRT Relaxation Parameters ---
+tau_s = 0.8
+lambda_magic = 1.0 / 4.0
+tau_a = 0.5 + lambda_magic / (tau_s - 0.5)
+
+omega_s = 1.0 / tau_s
+omega_a = 1.0 / tau_a
+
+w0 = 4.0 / 9.0
+w_straight = 1.0 / 9.0
+w_diag = 1.0 / 36.0

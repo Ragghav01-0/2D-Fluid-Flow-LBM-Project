@@ -5,41 +5,32 @@ ti.init(arch=ti.gpu) # Defines whether cpu or gpu is being used
 # Imports kernels from the different files
 from Initialization import initial_fluid
 from Macro import macro_update
-from Streaming import streaming
 from Initialize_Object import *
 from Swap import *
 from Pixels import updating_pixels
-from Collision import collide
-from simple_inlet import *
-from simple_outlet import *
-from Reynolds_num import calc_reynolds
+from Collision_and_Stream import *
+from Zou_he_inlet import *
+from Zou_he_outlet import *
+
 
 # Sets the initial fluid state and obstacle
 initialize_object()
 initial_fluid()
-print("Reynolds number: ", calc_reynolds())
 gui = ti.GUI("LBM Simulation", res=(nx, ny))
 
 # While loop to keep updating the simulation
 while gui.running:
-    collide()
-    streaming()
+    macro_update()
 
-    simple_inlet()
-    simple_outlet()
+    collide_and_stream()
+
+    zou_he_inlet()
+    zou_he_outlet()
 
     swap()
-    macro_update()
-    
+
     updating_pixels()
     gui.set_image(pixels)
     gui.show()
 
-# Saving Velocity values at node 2045
-# v2045 = []
-#
-# for i in ti.static(range(ny)):
-#     v2045.append(round(u[2045, i][0], 5))
-#
-# velocity = np.array(v2045)
-# np.savetxt("velocity_2045_test.csv", velocity, delimiter=",", fmt="%f")
+# Saving Velocity values at nod

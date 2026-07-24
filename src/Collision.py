@@ -1,19 +1,4 @@
-import taichi as ti
 from Fields import *
-
-# --- TRT Relaxation Parameters ---
-tau_s = 0.8
-lambda_magic = 3.0 / 16.0
-tau_a = 0.5 + lambda_magic / (tau_s - 0.5)
-
-omega_s = 1.0 / tau_s
-omega_a = 1.0 / tau_a
-
-# Hardcoded D2Q9 lattice weights
-w0 = 4.0 / 9.0
-w_straight = 1.0 / 9.0
-w_diag = 1.0 / 36.0
-
 
 @ti.kernel
 def collide():
