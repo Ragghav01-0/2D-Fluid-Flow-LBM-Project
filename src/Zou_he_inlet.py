@@ -1,4 +1,3 @@
-import taichi as ti
 from Fields import *
 from Initialize_Object import mask
 
@@ -6,7 +5,6 @@ from Initialize_Object import mask
 def zou_he_inlet():
     ux = 0.05 #U0 + A * ti.sin(omega * time[None])
     uy = 0.0
-
     u2 = ux * ux + uy * uy
 
     for y in ti.ndrange(ny):
