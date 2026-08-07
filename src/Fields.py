@@ -61,4 +61,4 @@ omega_s = 1.0 / tau_s
 omega_a = 1.0 / tau_a
 
 # combined stream + collision
-f_pull = ti.Vector.zero(ti.f32, 9)
+f_pull = ti.Vector.field(9, dtype=ti.f32, shape=(nx, ny))

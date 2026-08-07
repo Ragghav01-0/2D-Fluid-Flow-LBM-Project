@@ -7,9 +7,10 @@ from Macro import macro_update
 from Initialize_Object import *
 from Swap import *
 from Pixels import updating_pixels
-from Collision_and_Stream import *
+from TRT_and_Stream import *
 from Zou_he_inlet import *
 from Zou_he_outlet import *
+from Collide_and_Stream import *
 
 # Sets the initial fluid state and obstacle
 initialize_object()
