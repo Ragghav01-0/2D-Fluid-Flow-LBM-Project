@@ -11,7 +11,7 @@ def initialize_object():
         mask[x, 0] = 1
         mask[x, ny - 1] = 1
 
-    for x, y in ti.ndrange(nx, ny):
+    for x, y in ti.ndrange(nx, (1, ny - 1)):
         distance = ti.sqrt((x - cx) ** 2 + (y - cy) ** 2)
         if distance < radius:
             mask[x, y] = 1
