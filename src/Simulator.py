@@ -10,6 +10,7 @@ from Pixels import updating_pixels
 from Zou_he_inlet import *
 from Zou_he_outlet import *
 from Collide_and_Stream import *
+from TRT_and_Stream import *
 
 # Sets the initial fluid state and obstacle
 initialize_object()
@@ -20,6 +21,7 @@ gui = ti.GUI("LBM Simulation", res=(nx, ny))
 while gui.running:
 
     collide_and_stream()
+    trt_and_stream()
 
     zou_he_inlet()
     zou_he_outlet()
