@@ -1,4 +1,3 @@
-import taichi as ti
 from Fields import *
 from Initialize_Object import mask
 

@@ -20,7 +20,7 @@ gui = ti.GUI("LBM Simulation", res=(nx, ny))
 # While loop to keep updating the simulation
 while gui.running:
 
-    collide_and_stream()
+    # collide_and_stream()
     trt_and_stream()
 
     zou_he_inlet()

@@ -3,7 +3,7 @@ from Initialize_Object import mask
 
 @ti.kernel
 def zou_he_inlet():
-    ux = 0.05 #U0 + A * ti.sin(omega * time[None])
+    ux = 0.2 #U0 + A * ti.sin(omega * time[None])
     uy = 0.0
     u2 = ux * ux + uy * uy
 
