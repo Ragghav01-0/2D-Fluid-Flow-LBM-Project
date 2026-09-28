@@ -3,7 +3,16 @@ from Initialize_Object import mask
 
 @ti.kernel
 def zou_he_inlet():
-    ux = 0.2 #U0 + A * ti.sin(omega * time[None])
+    ramp_time = 2500.0
+    ux_target = 0.13
+    ux = 0.0
+
+    if time[None] < ramp_time:
+        x = time[None] / ramp_time
+        ux = ux_target * (3.0 * x**2 - 2.0 * x**3) #U0 + A * ti.sin(omega * time[None])
+    else:
+        ux = ux_target
+
     uy = 0.0
     u2 = ux * ux + uy * uy
 

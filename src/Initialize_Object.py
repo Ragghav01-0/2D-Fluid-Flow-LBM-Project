@@ -3,7 +3,7 @@ from Fields import *
 # Creates an obstacle for the fluid to flow around - currently the obstacle is a circle (cylinder in 3D)
 @ti.kernel
 def initialize_object():
-    cx, cy = ny, (ny // 2) + 2 # center of the cylinder
+    cx, cy = ny, (ny // 2)
     radius = 30
 
     for x in ti.ndrange(nx):

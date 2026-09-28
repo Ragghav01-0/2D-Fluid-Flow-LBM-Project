@@ -53,7 +53,7 @@ omega = 0.01
 w0 = 4.0 / 9.0
 w_straight = 1.0 / 9.0
 w_diag = 1.0 / 36.0
-tau_s = 0.9
+tau_s = 0.68
 lambda_magic = 3.0 / 16.0
 tau_a = 0.5 + lambda_magic / (tau_s - 0.5)
 
@@ -62,3 +62,14 @@ omega_a = 1.0 / tau_a
 
 # combined stream + collision
 f_pull = ti.Vector.field(9, dtype=ti.f32, shape=(nx, ny))
+
+# Error Detection System
+is_unstable = ti.field(dtype=ti.i32, shape=())
+error_code = ti.field(dtype=ti.i32, shape=())
+err_x = ti.field(dtype=ti.i32, shape=())
+err_y = ti.field(dtype=ti.i32, shape=())
+err_rho = ti.field(dtype=ti.f32, shape=())
+err_u2 = ti.field(dtype=ti.f32, shape=())
+err_ux = ti.field(dtype=ti.f32, shape=())
+err_uy = ti.field(dtype=ti.f32, shape=())
+err_f_pop = ti.field(dtype=ti.f32, shape=(9,))

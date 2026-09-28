@@ -3,9 +3,12 @@ from Fields import *
 @ti.kernel
 def trt_and_stream():
     for x, y in ti.ndrange(nx, ny):
+        if mask[x, y] == 1:
+            for k in ti.static(range(9)):
+                f_new[x, y][k] = f[x, y][e_opp[k]]
 
         # if current node is fluid
-        if mask[x, y] == 0:
+        else:
             for k in ti.static(range(9)):
                 xn = (x - e_static[k][0] + nx) % nx
                 yn = (y - e_static[k][1] + ny) % ny
@@ -16,7 +19,7 @@ def trt_and_stream():
 
                 # if neighboring node is solid
                 else:
-                    f_pull[x,y][k] = f[x,y][e_opp[k]]
+                    f_pull[x,y][k] = f[x, y][e_opp[k]]
 
             c_rho = 0.0
             ux = 0.0
@@ -67,7 +70,46 @@ def trt_and_stream():
             f_plus68 = 0.5 * (f_pull[x, y][6] + f_pull[x, y][8])
             f_minus68 = 0.5 * (f_pull[x, y][6] - f_pull[x, y][8])
             feq_plus_68 = (1.0 / 36.0) * c_rho * (1.0 + 4.5 * (-ux + uy) ** 2 - 1.5 * u2)
-            feq_minus_68 = (1.0 / 12.0) * c_rho *   (-ux + uy)
+            feq_minus_68 = (1.0 / 12.0) * c_rho * (-ux + uy)
 
             f_new[x, y][6] = f_pull[x, y][6] - omega_s * (f_plus68 - feq_plus_68) - omega_a * (f_minus68 - feq_minus_68)
             f_new[x, y][8] = f_pull[x, y][8] - omega_s * (f_plus68 - feq_plus_68) + omega_a * (f_minus68 - feq_minus_68)
+
+            if time[None] == 3500:
+                u2= 0.5
+
+        # ----------------------- Error Detection System (EDS) and origin pinpointer -----------------------
+            local_error_code = 0
+
+            if y > 3 and y < ny - 4 and x > 3 and x < nx - 4:
+                if ti.math.isnan(u2) == 1 or ti.math.isnan(ux) == 1:
+                    local_error_code = 4
+
+                # Check if rho is out of bounds
+                elif (c_rho < 0.6 or c_rho > 1.8) and time[None] > 3000:
+                    local_error_code = 3
+
+                # Check if simulation is exceeding Mach number
+                elif u2 > 0.16  and time[None] > 3000:
+                    local_error_code = 1
+
+                else:
+                    for k in ti.static(range(9)):
+                        # Check if distribution populations are negative
+                        if f_new[x, y][k] < -1e-3:
+                            local_error_code = 2
+
+                if local_error_code != 0:
+                    atomic_return_value = ti.atomic_max(is_unstable[None], 1)
+
+                    if atomic_return_value == 0:
+                        err_x[None] = x
+                        err_y[None] = y
+                        err_rho[None] = c_rho
+                        err_u2[None] = u2
+                        err_ux[None] = ux
+                        err_uy[None] = uy
+                        error_code[None] = local_error_code
+
+                        for k in ti.static(range(9)):
+                            err_f_pop[k] = f_new[x, y][k]
