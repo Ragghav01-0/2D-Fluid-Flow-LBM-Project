@@ -75,9 +75,6 @@ def trt_and_stream():
             f_new[x, y][6] = f_pull[x, y][6] - omega_s * (f_plus68 - feq_plus_68) - omega_a * (f_minus68 - feq_minus_68)
             f_new[x, y][8] = f_pull[x, y][8] - omega_s * (f_plus68 - feq_plus_68) + omega_a * (f_minus68 - feq_minus_68)
 
-            if time[None] == 3500:
-                u2= 0.5
-
         # ----------------------- Error Detection System (EDS) and origin pinpointer -----------------------
             local_error_code = 0
 

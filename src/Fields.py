@@ -1,5 +1,5 @@
 import taichi as ti
-ti.init(arch=ti.gpu)
+ti.init(arch=ti.cpu)
 
 # Lattice dimensions
 nx = 1024
