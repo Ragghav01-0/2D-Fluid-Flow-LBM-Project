@@ -1,11 +1,10 @@
 from Fields import *
 from Initialize_Object import mask
 
-# Initial fluid state kernel
+# Initializes the fluid state kernel
 @ti.kernel
 def initial_fluid():
-    for i,j in ti.ndrange(nx,ny): # loops over every node
-
+    for i,j in ti.ndrange(nx,ny):
         if mask[i, j] == 1:
             rho[i, j] = 0.0
             u[i, j] = ti.Vector([0.0, 0.0])
@@ -14,8 +13,9 @@ def initial_fluid():
             u[i, j] = ti.Vector([0.005,0.0])
 
         u2 = u[i, j].dot(u[i, j])
-        for k in ti.static(range(9)): # loops over all the 9 directions
+        for k in ti.static(range(9)):
+            # loops over all the 9 directions
             eu = e_static[k].dot(u[i,j])
-            fi_equilibrium = w_static[k]*rho[i,j]*(1 + 3*eu + 4.5*(eu**2) - 1.5*u2) # LBM equilibrium function
+            fi_equilibrium = w_static[k] * rho[i,j] * (1 + 3 * eu + 4.5 * (eu**2) - 1.5 * u2) # LBM equilibrium function
             f[i, j][k] = fi_equilibrium
             f_new[i, j][k] = fi_equilibrium

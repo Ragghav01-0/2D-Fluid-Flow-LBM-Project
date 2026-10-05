@@ -2,7 +2,7 @@ from Fields import *
 from Initialize_Object import mask
 
 @ti.kernel
-def zou_he_outlet():
+def zero_gradient_outlet():
     nxo = nx - 1
     nxo2 = nx - 2
 

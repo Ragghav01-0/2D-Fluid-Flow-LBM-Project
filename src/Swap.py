@@ -1,5 +1,6 @@
 from Fields import *
 
+# Swap f_new values into f
 @ti.kernel
 def swap():
     for x, y in ti.ndrange(nx, ny):

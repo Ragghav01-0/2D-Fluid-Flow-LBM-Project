@@ -24,6 +24,7 @@ def zou_he_inlet():
                 eu = e_static[k][0] * ux + e_static[k][1] * uy
                 f_new[0, y][k] = w_static[k] * rho_calc * (1.0 + 3.0 * eu + 4.5 * (eu ** 2) - 1.5 * u2)
 
+            # Calculating Unknown population distributions at inlet using Zou-He equations with predetermined density
             f_new[0, y][1] += (2.0 / 3.0) * rho_calc * ux
             f_new[0, y][5] += (1.0 / 6.0) * rho_calc * ux + 0.5 * rho_calc * uy
             f_new[0, y][8] += (1.0 / 6.0) * rho_calc * ux - 0.5 * rho_calc * uy

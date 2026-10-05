@@ -1,6 +1,6 @@
 from Fields import *
 
-# updates the velocity and density
+# Calculates and updates the velocity and density
 @ti.kernel
 def macro_update():
     for i, j in ti.ndrange(nx, ny):
@@ -19,7 +19,7 @@ def macro_update():
                 # new velocity
                 new_u += f[i,j][k]*e_static[k]
 
-            #updating velocity & density
+            # Updating density
             rho[i, j] = new_rho
 
             # Makes sure that velocity can't be divided by 0

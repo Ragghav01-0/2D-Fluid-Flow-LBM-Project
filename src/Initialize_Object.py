@@ -1,6 +1,6 @@
 from Fields import *
 
-# Creates an obstacle for the fluid to flow around - currently the obstacle is a circle (cylinder in 3D)
+# Defines boundaries and/or obstacles in the fluid channel
 @ti.kernel
 def initialize_object():
     cx, cy = ny, (ny // 2)
@@ -11,6 +11,7 @@ def initialize_object():
         mask[x, 0] = 1
         mask[x, ny - 1] = 1
 
+    # Obstacle definition - Currently creates a circle
     for x, y in ti.ndrange(nx, (1, ny - 1)):
         distance = ti.sqrt((x - cx) ** 2 + (y - cy) ** 2)
         if distance < radius:

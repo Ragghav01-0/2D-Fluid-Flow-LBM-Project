@@ -10,6 +10,7 @@ def trt_and_stream():
         # if current node is fluid
         else:
             for k in ti.static(range(9)):
+                # Pull Streaming
                 xn = (x - e_static[k][0] + nx) % nx
                 yn = (y - e_static[k][1] + ny) % ny
 
@@ -34,6 +35,8 @@ def trt_and_stream():
                 ux /= c_rho
                 uy /= c_rho
             u2 = (ux ** 2) + (uy ** 2)
+
+            # ============ TRT Collision Operator ==============
 
             # k = 0
             feq_0 = (4.0 / 9.0) * c_rho * (1.0 - 1.5 * u2)
