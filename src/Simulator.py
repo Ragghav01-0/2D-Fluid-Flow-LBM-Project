@@ -1,6 +1,9 @@
 import taichi as ti
 from colorama import Fore, Style
-ti.init(arch=ti.gpu) # Defines whether cpu or gpu is being used
+import time as timePy
+import numpy as np
+
+ti.init(arch=ti.cpu, debug=True) # Defines whether cpu or gpu is being used
 
 # Imports kernels from the different files
 from Initialization import initial_fluid
@@ -12,10 +15,20 @@ from Zou_he_inlet import *
 from Zero_Gradient_Outlet import *
 from Collide_and_Stream import *
 from TRT_and_Stream import *
+from CLI_header import *
+from Convergence_Checker import *
+from examples import Von_Karman
+
+# Simulation Metric Variables Initialization
+start = timePy.perf_counter()
+prev_time = start
 
 # Sets the initial fluid state and obstacle
 initialize_object()
 initial_fluid()
+
+# initialize CLI header
+CLI_header()
 gui = ti.GUI("LBM Simulation", res=(nx, ny))
 
 while gui.running:
@@ -26,7 +39,7 @@ while gui.running:
         print(Fore.RED + Style.BRIGHT + "!! SIMULATION INSTABILITY DETECTED - STOPPING SIMULATION")
         print("\n" + Fore.RED + Style.BRIGHT + "="*50)
         print(f" {Fore.YELLOW}Error Code: {error_code[None]}")
-        print(f" {Fore.YELLOW}Time: {time[None]}")
+        print(f" {Fore.YELLOW}Time: {step[None]}")
         print(f" {Fore.YELLOW}Location:  (x={err_x[None]}, y={err_y[None]})")
         print(f" {Fore.YELLOW}Density: {err_rho[None]:.6f}")
         print(f" {Fore.YELLOW}Speed (u2): {err_u2[None]:.6f}")
@@ -35,7 +48,7 @@ while gui.running:
         print(f" {Fore.YELLOW}Discrete Distribution Function Populations (f): {err_f_pop}")
         print("\n" + Fore.RED + Style.BRIGHT + "="*50)
 
-        gui.running = False
+        running = False
         break
 
     # collide_and_stream()
@@ -48,9 +61,47 @@ while gui.running:
     macro_update()
 
     # GUI pixel update loop
-    if time[None] % 5 == 0:
-        updating_pixels()
-        gui.set_image(pixels)
-        gui.show()
+    # if step[None] % 5 == 0:
+    #     updating_pixels()
+    #     gui.set_image(pixels)
+    #     gui.show()
 
-    time[None] += 1
+    if step[None] > 0 and step[None] % interval == 0:
+        Convergence_Checker()
+        rel_change = max_diff[None] / (max_vel[None] + 1e-14)
+
+        elapsed = timePy.perf_counter() - prev_time
+        run_time = timePy.perf_counter() - start
+
+        MLUPS = (nodes * interval) / (elapsed * 1e6)
+        avg_mlups += MLUPS
+        print(f"Step: {step[None]} | elapsed: {run_time:.2f} | Simulation Speed/MLUPS: {MLUPS:.2f} | Delta: {rel_change:.7f}")
+        prev_time = timePy.perf_counter()
+        log_count += 1
+
+        if rel_change < tolerance:
+            print(f"Simulation Converged Successfully at step: {step[None]}")
+            converged = True
+            break
+
+    step[None] += 1
+
+total_run_time = timePy.perf_counter() - start
+
+# Simulation Summary Reporter
+avg_mlups /= log_count
+print("=" * 40 + " Simulation Finished Successfully " + "=" * 40)
+print("")
+print("=" * 90)
+print(f"[Timer] Simulation Summary")
+print(f"[Timer] Average MLUPS: {avg_mlups:.3f}")
+print(f"[Timer] Simulation Time: {total_run_time:.2f}")
+print("=" * 90)
+
+# v1000 = []
+#
+# for i in ti.static(range(ny)):
+#     v1000.append(round(u[1000, i][0], 5))
+#
+# velocity1 = np.array(v1000)
+# np.savetxt("../Results/velocity_1000.csv", velocity1, delimiter=",", fmt="%f")

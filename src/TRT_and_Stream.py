@@ -3,12 +3,9 @@ from Fields import *
 @ti.kernel
 def trt_and_stream():
     for x, y in ti.ndrange(nx, ny):
-        if mask[x, y] == 1:
-            for k in ti.static(range(9)):
-                f_new[x, y][k] = f[x, y][e_opp[k]]
 
         # if current node is fluid
-        else:
+        if mask[x, y] == 0:
             for k in ti.static(range(9)):
                 # Pull Streaming
                 xn = (x - e_static[k][0] + nx) % nx
@@ -86,11 +83,11 @@ def trt_and_stream():
                     local_error_code = 4
 
                 # Check if rho is out of bounds
-                elif (c_rho < 0.6 or c_rho > 1.8) and time[None] > 3000:
+                elif (c_rho < 0.6 or c_rho > 1.8) and step[None] > 3000:
                     local_error_code = 3
 
                 # Check if simulation is exceeding Mach number
-                elif u2 > 0.16  and time[None] > 3000:
+                elif u2 > 0.16  and step[None] > 3000:
                     local_error_code = 1
 
                 else:

@@ -1,5 +1,5 @@
 import taichi as ti
-ti.init(arch=ti.gpu)
+ti.init(arch=ti.cpu)
 
 # Lattice dimensions
 nx = 1024
@@ -31,18 +31,9 @@ pixels = ti.Vector.field(3, dtype=ti.f32, shape=(nx, ny))
 
 # max velocity
 u_max = ti.Vector([0.05, 0.0])
+ux_target = 0.05
 
-# Reynolds number, kinematic viscosity, tau
-re = 125
-
-nyf = float(ny)
-u_m1 = u_max.norm()
-u_f = (2/3) * float(u_m1)
-
-nu = (u_f * nyf) / re
-tau = 0.54 #(3 * nu) + 0.5
-
-time = ti.field(dtype=ti.i32, shape=())
+step = ti.field(dtype=ti.i32, shape=())
 
 # Pulsate model parameters
 U0 = 0.05
@@ -53,7 +44,7 @@ omega = 0.01
 w0 = 4.0 / 9.0
 w_straight = 1.0 / 9.0
 w_diag = 1.0 / 36.0
-tau_s = 0.68
+tau_s = 0.884
 lambda_magic = 3.0 / 16.0
 tau_a = 0.5 + lambda_magic / (tau_s - 0.5)
 
@@ -73,3 +64,33 @@ err_u2 = ti.field(dtype=ti.f32, shape=())
 err_ux = ti.field(dtype=ti.f32, shape=())
 err_uy = ti.field(dtype=ti.f32, shape=())
 err_f_pop = ti.field(dtype=ti.f32, shape=(9,))
+
+# Initialize_Object.py variables
+cx, cy = 256, (ny // 2)
+circle_radius = 30
+plaque_type = "eccentric"
+center = int(nx/3)
+plaque_length = 450
+h_max = 0.5 * ny # Change the constant to change plaque severity
+spread = 120
+
+# Convergence Checker
+u_mag = ti.field(dtype=ti.f32, shape=(nx, ny))
+u_mag_old = ti.field(dtype=ti.f32, shape=(nx, ny))
+max_diff = ti.field(dtype=ti.f32, shape=())
+max_vel = ti.field(dtype=ti.f32, shape=())
+
+# Simulation metric calculation
+interval = 250
+nodes = nx * ny
+avg_mlups = 0
+log_count = 0
+running = True
+
+#Convergence check Variables
+tolerance = 1e-5
+converged = False
+
+# Reynolds number, kinematic viscosity, tau - uncomment if using SRT collision kernel
+lattice_viscosity = (0.33 * (tau_s - 0.5))
+Re = (ny * ux_target) / lattice_viscosity
