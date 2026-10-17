@@ -1,0 +1,6 @@
+name: .venv_lbm
+dependencies:
+  - python=3.11
+  - numpy
+  - pip:
+    - -r requirements.txt
