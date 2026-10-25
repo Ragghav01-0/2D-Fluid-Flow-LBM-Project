@@ -10,7 +10,7 @@ param(
     [switch]$Hold               # no command: just animate until MinDuration is reached
 )
 
-$W = 76; $H = 15; $L = 38; $cx = 13; $cy = 7; $R = 3; $LogLines = 4
+$W = 76; $H = 15; $L = 38; $cx = 13; $cy = 7; $Rad = 3; $LogLines = 4
 $Total = 1 + $H + 2 + 1 + $LogLines
 $Captions = @(
     'Seeding the D2Q9 lattice with fluid populations',
@@ -33,7 +33,7 @@ for ($c = 0; $c -lt $W; $c++) { $baseCh[0, $c] = '='; $baseCh[($H - 1), $c] = '=
 for ($r = 1; $r -lt $H - 1; $r++) {
     for ($c = 0; $c -lt $W; $c++) {
         $dx = ($c + 0.5) * 0.5 - $cx; $dy = $r - $cy
-        if ($dx * $dx + $dy * $dy -le $R * $R) { $baseCh[$r, $c] = '#'; $baseCl[$r, $c] = 1 }
+        if ($dx * $dx + $dy * $dy -le $Rad * $Rad) { $baseCh[$r, $c] = '#'; $baseCl[$r, $c] = 1 }
     }
 }
 
@@ -45,7 +45,7 @@ function Write-Padded([string]$text, [string]$color) {
 
 # Tracer particles live in $px/$py (trail of $NT samples each) and are advected
 # through the potential-flow velocity field (U = 1) plus a weak oscillating wake.
-$PerLine = 9; $NT = 7; $dt = 0.3; $Rsq = $R * $R
+$PerLine = 9; $NT = 7; $dt = 0.3; $Rsq = $Rad * $Rad
 $lim = ($H - 2) / 2 - 0.1
 $NLines = 2 * [int][Math]::Floor($lim / 0.65 + 0.5); $NP = $NLines * $PerLine
 $px = New-Object 'double[,]' $NP, $NT
@@ -57,7 +57,7 @@ function Get-Velocity([double]$x, [double]$y, [double]$tt) {
     $r2 = [Math]::Max(0.01, $dx * $dx + $y * $y); $r4 = $r2 * $r2
     $vx = 1 - $Rsq * ($dx * $dx - $y * $y) / $r4
     $vy = -2 * $Rsq * $dx * $y / $r4
-    $d = $dx - $R
+    $d = $dx - $Rad
     if ($d -gt 0) {
         $g = $d / ($d + 2) * [Math]::Exp(-$d / 16)
         $vx *= 1 - 0.55 * $g * [Math]::Exp(-$y * $y / 8)
@@ -72,10 +72,10 @@ function Step-Particle([int]$p, [double]$tt, [int]$frame) {
         Get-Velocity $x $y $tt
         $x += $script:FVX * $hs; $y += $script:FVY * $hs
         $dx = $x - $cx; $rr = [Math]::Sqrt($dx * $dx + $y * $y)
-        if ($rr -lt $R * 1.02) { $x = $cx + $dx * $R * 1.02 / $rr; $y = $y * $R * 1.02 / $rr }
+        if ($rr -lt $Rad * 1.02) { $x = $cx + $dx * $Rad * 1.02 / $rr; $y = $y * $Rad * 1.02 / $rr }
         $y = [Math]::Max(-$lim - 0.05, [Math]::Min($lim + 0.05, $y))
     }
-    for ($i = $NT - 1; $i -gt 0; $i--) { $px[$p, $i] = $px[$p, $i - 1]; $py[$p, $i] = $py[$p, $i - 1] }
+    for ($i = $NT - 1; $i -gt 0; $i--) { $j = $i - 1; $px[$p, $i] = $px[$p, $j]; $py[$p, $i] = $py[$p, $j] }
     $px[$p, 0] = $x; $py[$p, 0] = $y
     if ($x -ge $L) {
         $x = -(($frame * 7 + $p * 13) % 10) / 10 * 1.5
@@ -112,7 +112,7 @@ function Draw-Flow([int]$frame) {
         $col = 0
         while ($col -lt $W) {
             $run = $cl[$r, $col]; $sb = New-Object Text.StringBuilder
-            while ($col -lt $W -and $cl[$r, $col] -eq $run) { [void]$sb.Append($ch[$r, $col]); $col++ }
+            while ($col -lt $W -and $cl[$r, $col] -eq $run) { $glyph = $ch[$r, $col]; [void]$sb.Append($glyph); $col++ }
             [Console]::ForegroundColor = $Palette[$run]
             [Console]::Write($sb.ToString())
         }
