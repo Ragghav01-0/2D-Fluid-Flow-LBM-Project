@@ -10,6 +10,18 @@
           <option value="numpy" />
           <option value="packaging" />
           <option value="Pygments" />
+          <option value="colorama" />
+          <option value="contourpy" />
+          <option value="cycler" />
+          <option value="dill" />
+          <option value="markdown-it-py" />
+          <option value="mdurl" />
+          <option value="pillow" />
+          <option value="pyparsing" />
+          <option value="python-dateutil" />
+          <option value="rich" />
+          <option value="six" />
+          <option value="taichi" />
         </list>
       </option>
     </inspection_tool>

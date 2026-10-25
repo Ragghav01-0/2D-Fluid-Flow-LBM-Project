@@ -3,17 +3,16 @@ import matplotlib.pyplot as plt
 from Fields import *
 from Zou_he_inlet import ux_target
 
-v1 = np.loadtxt('../Results/velocity_1000.csv', delimiter=',')
+v1 = np.loadtxt('../Results/Test_2.csv', delimiter=',')
 ny_value = len(v1)
 height = np.arange(ny_value)
 
 # Analytical Solution
-y = height + 0.5
-center = (ny_value - 1) / 2
-R = ny_value / 2.0
+y = height
+H = ny - 1
 
-max = 1.5 * ux_target
-analytical = max * (1.0 - ((y - center) / R) ** 2)
+max = ux_target
+analytical = max * (4.0 * y * (H - y) / (H**2))
 
 print("=" * 90)
 # Assuming v1 (simulation) and velocity_analytical are numpy arrays of the same length
@@ -44,5 +43,3 @@ plt.legend(loc="upper right")
 plt.xlim(0, np.max(v1) * 1.2)
 plt.title('Poiseuille Flow')
 plt.show()
-
-print()

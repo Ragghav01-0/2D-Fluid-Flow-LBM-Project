@@ -3,8 +3,6 @@ from colorama import Fore, Style
 import time as timePy
 import numpy as np
 
-from examples.Von_Karman import von_karman
-
 ti.init(arch=ti.cpu, debug=True) # Defines whether cpu or gpu is being used
 
 # Imports kernels from the different files
@@ -18,15 +16,13 @@ from Zero_Gradient_Outlet import *
 from TRT_and_Stream import *
 from CLI_header import *
 from Convergence_Checker import *
-from examples import Von_Karman
 
 # Simulation Metric Variables Initialization
 start = timePy.perf_counter()
 prev_time = start
 
 # Sets the initial fluid state and obstacle
-von_karman()
-# initialize_object()
+initialize_object()
 initial_fluid()
 
 # initialize CLI header
@@ -69,9 +65,6 @@ while not converged:
         running = False
         break
 
-    
-    
-    # collide_and_stream()
     trt_and_stream()
 
     zou_he_inlet()
@@ -96,7 +89,6 @@ while not converged:
         MLUPS = (nodes * interval) / (elapsed * 1e6)
         avg_mlups += MLUPS
         print(f"Step: {step[None]} | elapsed: {run_time:.2f} | Simulation Speed/MLUPS: {MLUPS:.2f} | Delta: {rel_change:.7f}")
-        print(f"    - ux speed {u[200, 128][0]:.3f}, uy speed {u[200, 128][1]:.3f}")
         prev_time = timePy.perf_counter()
         log_count += 1
 
@@ -126,4 +118,4 @@ for i in ti.static(range(ny)):
     v1000.append(round(u[1000, i][0], 5))
 
 velocity1 = np.array(v1000)
-np.savetxt("../Results/velocity_1000_Re10.csv", velocity1, delimiter=",", fmt="%f")
+np.savetxt("../Results/Test_2.csv", velocity1, delimiter=",", fmt="%f")

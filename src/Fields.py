@@ -3,7 +3,7 @@ ti.init(arch=ti.cpu)
 
 # Lattice dimensions
 nx = 1024
-ny = 191 #256
+ny = 256 #191
 
 # discrete velocities(f), density(rho) and velocity(u)
 f = ti.Vector.field(9, dtype=ti.f32, shape=(nx, ny))
@@ -30,7 +30,7 @@ mask = ti.field(dtype=ti.f32, shape=(nx, ny))
 pixels = ti.Vector.field(3, dtype=ti.f32, shape=(nx, ny))
 
 # Zou-He Inlet parameters
-ux_target = 0.05
+ux_target = 0.18
 uy = 0.0
 
 step = ti.field(dtype=ti.i32, shape=())
@@ -44,7 +44,7 @@ omega = 0.01
 w0 = 4.0 / 9.0
 w_straight = 1.0 / 9.0
 w_diag = 1.0 / 36.0
-tau_s = 0.546
+tau_s = 0.6656
 lambda_magic = 3.0 / 16.0
 tau_a = 0.5 + lambda_magic / (tau_s - 0.5)
 

@@ -4,17 +4,17 @@ from Initialize_Object import mask
 @ti.kernel
 def zou_he_inlet():
     ramp_time = 1500.0
-    ux = 0.0
-    factor = 1.0
+    ux = ux_target
 
     if step[None] < ramp_time:
         x = step[None] / ramp_time
-        factor = 3 * (x**2) - 2 * (x**3) #U0 + A * ti.sin(omega * time[None])
+        ux *= (3.0 * x ** 2 - 2.0 * x ** 3)
 
     for y in ti.ndrange(ny):
         if mask[0, y] == 0:
-            u_max = ux_target * factor
-            ux = (4 * u_max * y * ((ny - 1) - y)) / ((ny - 1) ** 2)
+            # parabolic = 4.0 * y * ( (ny -1) - y) / ((ny - 1) ** 2)
+            # ux *= parabolic
+            # uy = 0.0
 
             f0 = f_new[0, y][0]
             f2 = f_new[0, y][2]
