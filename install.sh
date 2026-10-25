@@ -28,6 +28,9 @@ if command -v conda &> /dev/null; then
     conda env create -f environment.yml || fail "could not create the conda environment"
   fi
 
+  # Make `src` and `examples` importable so Simulator.py runs from src/ without extra steps
+  conda run --no-capture-output -n "$ENV_NAME" python -m pip install -e . || fail "could not install the project (pip install -e .)"
+
   echo
   echo "Environment ready. Activate it with:"
   echo "    conda activate $ENV_NAME"
@@ -50,10 +53,13 @@ else
   "$ENV_NAME/bin/python" -m pip install --upgrade pip
   "$ENV_NAME/bin/python" -m pip install -r requirements.txt || fail "pip could not install requirements.txt"
 
+  # Make `src` and `examples` importable so Simulator.py runs from src/ without extra steps
+  "$ENV_NAME/bin/python" -m pip install -e . || fail "pip could not install the project (pip install -e .)"
+
   echo
   echo "Environment ready. Activate it with:"
   echo "    source $ENV_NAME/bin/activate"
 fi
 
 echo
-echo "Then run 'pip install -e .' from the repo root to make 'src' and 'examples' importable."
+echo "Then run the simulator with:  cd src && python Simulator.py"

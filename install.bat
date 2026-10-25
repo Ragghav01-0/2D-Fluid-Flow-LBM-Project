@@ -24,6 +24,9 @@ if %ERRORLEVEL%==0 (
         call conda env create -f environment.yml || goto :fail
     )
 
+    :: Make src and examples importable so Simulator.py runs from src\ without extra steps
+    call conda run --no-capture-output -n %ENV_NAME% python -m pip install -e . || goto :fail
+
     echo.
     echo Environment ready. Activate it with:
     echo     conda activate %ENV_NAME%
@@ -48,6 +51,9 @@ echo Python found.
 "%ENV_NAME%\Scripts\python.exe" -m pip install --upgrade pip
 "%ENV_NAME%\Scripts\python.exe" -m pip install -r requirements.txt || goto :fail
 
+:: Make src and examples importable so Simulator.py runs from src\ without extra steps
+"%ENV_NAME%\Scripts\python.exe" -m pip install -e . || goto :fail
+
 echo.
 echo Environment ready. Activate it with:
 echo     %ENV_NAME%\Scripts\activate.bat
@@ -55,7 +61,7 @@ goto :done
 
 :done
 echo.
-echo Then run "pip install -e ." from the repo root to make "src" and "examples" importable.
+echo Then run the simulator with:  cd src ^&^& python Simulator.py
 pause
 exit /b 0
 
