@@ -1,4 +1,5 @@
 from Fields import *
+tau = 0.6
 
 @ti.kernel
 def collide_and_stream():

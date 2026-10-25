@@ -5,18 +5,17 @@ from Initialize_Object import mask
 def zou_he_inlet():
     ramp_time = 1500.0
     ux = 0.0
+    factor = 1.0
 
     if step[None] < ramp_time:
         x = step[None] / ramp_time
-        ux = ux_target * (3.0 * x**2 - 2.0 * x**3) #U0 + A * ti.sin(omega * time[None])
-    else:
-        ux = ux_target
-
-    uy = 0.0
-    u2 = ux * ux + uy * uy
+        factor = 3 * (x**2) - 2 * (x**3) #U0 + A * ti.sin(omega * time[None])
 
     for y in ti.ndrange(ny):
         if mask[0, y] == 0:
+            u_max = ux_target * factor
+            ux = (4 * u_max * y * ((ny - 1) - y)) / ((ny - 1) ** 2)
+
             f0 = f_new[0, y][0]
             f2 = f_new[0, y][2]
             f4 = f_new[0, y][4]

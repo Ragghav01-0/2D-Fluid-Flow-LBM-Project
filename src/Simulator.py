@@ -3,6 +3,8 @@ from colorama import Fore, Style
 import time as timePy
 import numpy as np
 
+from examples.Von_Karman import von_karman
+
 ti.init(arch=ti.cpu, debug=True) # Defines whether cpu or gpu is being used
 
 # Imports kernels from the different files
@@ -13,7 +15,6 @@ from Swap import *
 from Pixels import updating_pixels
 from Zou_he_inlet import *
 from Zero_Gradient_Outlet import *
-from Collide_and_Stream import *
 from TRT_and_Stream import *
 from CLI_header import *
 from Convergence_Checker import *
@@ -24,17 +25,35 @@ start = timePy.perf_counter()
 prev_time = start
 
 # Sets the initial fluid state and obstacle
-initialize_object()
+von_karman()
+# initialize_object()
 initial_fluid()
 
 # initialize CLI header
 CLI_header()
-gui = ti.GUI("LBM Simulation", res=(nx, ny))
+# gui = ti.GUI("LBM Simulation", res=(nx, ny))
 
-while gui.running:
+sysreport = False
+
+while not converged:
 
     # EDS loop
-    if is_unstable[None] == 1:
+    if is_unstable[None] == 1 and not sysreport:
+        print("\n" + Fore.RED + Style.BRIGHT + "="*50)
+        print(Fore.RED + Style.BRIGHT + "!! SIMULATION INSTABILITY DETECTED !!")
+        print("\n" + Fore.RED + Style.BRIGHT + "="*50)
+        print(f" {Fore.YELLOW}Error Code: {error_code[None]}")
+        print(f" {Fore.YELLOW}Time: {step[None]}")
+        print(f" {Fore.YELLOW}Location:  (x={err_x[None]}, y={err_y[None]})")
+        print(f" {Fore.YELLOW}Density: {err_rho[None]:.6f}")
+        print(f" {Fore.YELLOW}Speed (u2): {err_u2[None]:.6f}")
+        print(f" {Fore.YELLOW}Speed (ux): {err_ux[None]:.6f}")
+        print(f" {Fore.YELLOW}Speed (uy): {err_uy[None]:.6f}")
+        print(f" {Fore.YELLOW}Discrete Distribution Function Populations (f): {err_f_pop}")
+        print("\n" + Fore.RED + Style.BRIGHT + "="*50)
+        sysreport = True
+
+    if error_code[None] == 2 or error_code[None] == 4:   
         print("\n" + Fore.RED + Style.BRIGHT + "="*50)
         print(Fore.RED + Style.BRIGHT + "!! SIMULATION INSTABILITY DETECTED - STOPPING SIMULATION")
         print("\n" + Fore.RED + Style.BRIGHT + "="*50)
@@ -47,10 +66,11 @@ while gui.running:
         print(f" {Fore.YELLOW}Speed (uy): {err_uy[None]:.6f}")
         print(f" {Fore.YELLOW}Discrete Distribution Function Populations (f): {err_f_pop}")
         print("\n" + Fore.RED + Style.BRIGHT + "="*50)
-
         running = False
         break
 
+    
+    
     # collide_and_stream()
     trt_and_stream()
 
@@ -62,9 +82,9 @@ while gui.running:
 
     # GUI pixel update loop
     # if step[None] % 5 == 0:
-    #     updating_pixels()
-    #     gui.set_image(pixels)
-    #     gui.show()
+    #    updating_pixels()
+    #    gui.set_image(pixels)
+    #    gui.show()
 
     if step[None] > 0 and step[None] % interval == 0:
         Convergence_Checker()
@@ -76,6 +96,7 @@ while gui.running:
         MLUPS = (nodes * interval) / (elapsed * 1e6)
         avg_mlups += MLUPS
         print(f"Step: {step[None]} | elapsed: {run_time:.2f} | Simulation Speed/MLUPS: {MLUPS:.2f} | Delta: {rel_change:.7f}")
+        print(f"    - ux speed {u[200, 128][0]:.3f}, uy speed {u[200, 128][1]:.3f}")
         prev_time = timePy.perf_counter()
         log_count += 1
 
@@ -88,20 +109,21 @@ while gui.running:
 
 total_run_time = timePy.perf_counter() - start
 
-# Simulation Summary Reporter
-avg_mlups /= log_count
-print("=" * 40 + " Simulation Finished Successfully " + "=" * 40)
-print("")
-print("=" * 90)
-print(f"[Timer] Simulation Summary")
-print(f"[Timer] Average MLUPS: {avg_mlups:.3f}")
-print(f"[Timer] Simulation Time: {total_run_time:.2f}")
-print("=" * 90)
+if error_code[None] == 0:
+    # Simulation Summary Reporter
+    avg_mlups /= log_count
+    print("=" * 40 + " Simulation Finished Successfully " + "=" * 40)
+    print("")
+    print("=" * 90)
+    print(f"[Timer] Simulation Summary")
+    print(f"[Timer] Average MLUPS: {avg_mlups:.3f}")
+    print(f"[Timer] Simulation Time: {total_run_time:.2f}")
+    print("=" * 90)
 
-# v1000 = []
-#
-# for i in ti.static(range(ny)):
-#     v1000.append(round(u[1000, i][0], 5))
-#
-# velocity1 = np.array(v1000)
-# np.savetxt("../Results/velocity_1000.csv", velocity1, delimiter=",", fmt="%f")
+v1000 = []
+
+for i in ti.static(range(ny)):
+    v1000.append(round(u[1000, i][0], 5))
+
+velocity1 = np.array(v1000)
+np.savetxt("../Results/velocity_1000_Re10.csv", velocity1, delimiter=",", fmt="%f")

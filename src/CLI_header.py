@@ -1,5 +1,4 @@
 import time
-
 from Fields import *
 
 def CLI_header():
