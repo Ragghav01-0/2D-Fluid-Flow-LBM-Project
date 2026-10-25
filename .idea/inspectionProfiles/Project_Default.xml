@@ -4,19 +4,19 @@
     <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="ignoredPackages">
         <list>
-          <option value="fonttools" />
-          <option value="kiwisolver" />
-          <option value="matplotlib" />
           <option value="numpy" />
-          <option value="packaging" />
-          <option value="Pygments" />
           <option value="colorama" />
           <option value="contourpy" />
           <option value="cycler" />
           <option value="dill" />
+          <option value="fonttools" />
+          <option value="kiwisolver" />
           <option value="markdown-it-py" />
+          <option value="matplotlib" />
           <option value="mdurl" />
+          <option value="packaging" />
           <option value="pillow" />
+          <option value="Pygments" />
           <option value="pyparsing" />
           <option value="python-dateutil" />
           <option value="rich" />

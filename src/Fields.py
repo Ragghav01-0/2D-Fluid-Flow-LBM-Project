@@ -92,5 +92,8 @@ tolerance = 1e-5
 converged = False
 
 # Reynolds number, kinematic viscosity, tau - uncomment if using SRT collision kernel
-lattice_viscosity = (0.33 * (tau_s - 0.5))
-Re = (ny * ux_target) / lattice_viscosity
+u_mean = (2.0/3.0) * ux_target
+lattice_viscosity = ( (1.0/3.0) * (tau_s - 0.5))
+Re = (2 * circle_radius * u_mean) / lattice_viscosity
+
+print(f"Reynolds number: {Re:.2f}")
