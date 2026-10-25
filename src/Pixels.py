@@ -13,7 +13,7 @@ def updating_pixels():
 
             vorticity = duy_dx - dux_dy
 
-            scale = 0.0075
+            scale = 0.005
             v_norm = vorticity / scale
 
             if v_norm > 1.0:

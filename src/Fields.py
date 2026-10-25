@@ -3,7 +3,7 @@ ti.init(arch=ti.cpu)
 
 # Lattice dimensions
 nx = 1024
-ny = 256 #191
+ny = 256
 
 # discrete velocities(f), density(rho) and velocity(u)
 f = ti.Vector.field(9, dtype=ti.f32, shape=(nx, ny))
@@ -29,9 +29,9 @@ mask = ti.field(dtype=ti.f32, shape=(nx, ny))
 # initializes pixels for GUI
 pixels = ti.Vector.field(3, dtype=ti.f32, shape=(nx, ny))
 
-# Zou-He Inlet parameters
-ux_target = 0.18
-uy = 0.0
+# max velocity
+u_max = ti.Vector([0.05, 0.0])
+ux_target = 0.05
 
 step = ti.field(dtype=ti.i32, shape=())
 
@@ -44,7 +44,7 @@ omega = 0.01
 w0 = 4.0 / 9.0
 w_straight = 1.0 / 9.0
 w_diag = 1.0 / 36.0
-tau_s = 0.6656
+tau_s = 0.884
 lambda_magic = 3.0 / 16.0
 tau_a = 0.5 + lambda_magic / (tau_s - 0.5)
 
@@ -66,8 +66,8 @@ err_uy = ti.field(dtype=ti.f32, shape=())
 err_f_pop = ti.field(dtype=ti.f32, shape=(9,))
 
 # Initialize_Object.py variables
-cx, cy = 93, 93
-circle_radius = 23
+cx, cy = 256, (ny // 2)
+circle_radius = 30
 plaque_type = "eccentric"
 center = int(nx/3)
 plaque_length = 450
@@ -92,6 +92,5 @@ tolerance = 1e-5
 converged = False
 
 # Reynolds number, kinematic viscosity, tau - uncomment if using SRT collision kernel
-u_mean = (2.0/3.0) * ux_target
-lattice_viscosity = ( (1.0/3.0) * (tau_s - 0.5))
-Re = (2 * circle_radius * u_mean) / lattice_viscosity
+lattice_viscosity = (0.33 * (tau_s - 0.5))
+Re = (ny * ux_target) / lattice_viscosity

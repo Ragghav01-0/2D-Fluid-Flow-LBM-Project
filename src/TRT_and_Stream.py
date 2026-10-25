@@ -77,14 +77,10 @@ def trt_and_stream():
 
         # ----------------------- Error Detection System (EDS) and origin pinpointer -----------------------
             local_error_code = 0
-            nanreport = False
 
             if y > 3 and y < ny - 4 and x > 3 and x < nx - 4:
-                # check for NaN values
                 if ti.math.isnan(u2) == 1 or ti.math.isnan(ux) == 1:
                     local_error_code = 4
-                    error_code[None] = 4
-                    nanreport = True
 
                 # Check if rho is out of bounds
                 elif (c_rho < 0.6 or c_rho > 1.8) and step[None] > 3000:
@@ -99,8 +95,6 @@ def trt_and_stream():
                         # Check if distribution populations are negative
                         if f_new[x, y][k] < -1e-3:
                             local_error_code = 2
-                            error_code[None] = 2
-                            nanreport = True
 
                 if local_error_code != 0:
                     atomic_return_value = ti.atomic_max(is_unstable[None], 1)
