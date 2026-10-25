@@ -30,7 +30,7 @@ mask = ti.field(dtype=ti.f32, shape=(nx, ny))
 pixels = ti.Vector.field(3, dtype=ti.f32, shape=(nx, ny))
 
 # Zou-He Inlet parameters
-ux_target = 0.18
+ux_target = 0.05
 uy = 0.0
 
 step = ti.field(dtype=ti.i32, shape=())
@@ -44,7 +44,7 @@ omega = 0.01
 w0 = 4.0 / 9.0
 w_straight = 1.0 / 9.0
 w_diag = 1.0 / 36.0
-tau_s = 0.6656
+tau_s = 0.884
 lambda_magic = 3.0 / 16.0
 tau_a = 0.5 + lambda_magic / (tau_s - 0.5)
 
@@ -67,7 +67,7 @@ err_f_pop = ti.field(dtype=ti.f32, shape=(9,))
 
 # Initialize_Object.py variables
 cx, cy = 93, 93
-circle_radius = 23
+circle_radius = 30
 plaque_type = "eccentric"
 center = int(nx/3)
 plaque_length = 450
