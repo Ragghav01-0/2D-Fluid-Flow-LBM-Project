@@ -5,6 +5,7 @@ echo Creating new virtual environment
 echo.
 
 set "SPIN_LOG=%~dp0install.log"
+set "SPIN_STEPS=%~dp0install_steps.tmp"
 type nul > "%SPIN_LOG%"
 for /f %%t in ('powershell -NoProfile -Command "[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()"') do set "START_EPOCH=%%t"
 
@@ -12,8 +13,7 @@ for /f %%t in ('powershell -NoProfile -Command "[DateTimeOffset]::UtcNow.ToUnixT
 where conda >nul 2>nul
 if %ERRORLEVEL%==0 (
     echo Conda exists in your system.
-    set "SPIN_MSG=Creating conda environment and installing dependencies"
-    set "SPIN_CMD=conda env create -f environment.yml --yes"
+    > "%SPIN_STEPS%" echo Creating conda environment and installing dependencies^|conda env create -f environment.yml --yes
     call :spin
     if errorlevel 1 (
         echo.
@@ -21,7 +21,6 @@ if %ERRORLEVEL%==0 (
         echo     conda env update -f environment.yml --prune
         goto :fail
     )
-    call :hold
     echo.
     echo Environment created. Activate it by typing: conda activate .venv_lbm
     goto :end
@@ -31,16 +30,10 @@ if %ERRORLEVEL%==0 (
 python --version >nul 2>nul
 if %ERRORLEVEL%==0 (
     echo Python exists in your system.
-    set "SPIN_MSG=Creating virtual environment"
-    set "SPIN_CMD=python -m venv .venv_lbm"
+    > "%SPIN_STEPS%" echo Creating virtual environment^|python -m venv .venv_lbm
+    >> "%SPIN_STEPS%" echo Upgrading pip^|.venv_lbm\Scripts\python.exe -m pip install --upgrade pip
+    >> "%SPIN_STEPS%" echo Installing dependencies from requirements.txt^|.venv_lbm\Scripts\python.exe -m pip install -r requirements.txt
     call :spin || goto :fail
-    set "SPIN_MSG=Upgrading pip"
-    set "SPIN_CMD=.venv_lbm\Scripts\python.exe -m pip install --upgrade pip"
-    call :spin || goto :fail
-    set "SPIN_MSG=Installing dependencies from requirements.txt"
-    set "SPIN_CMD=.venv_lbm\Scripts\python.exe -m pip install -r requirements.txt"
-    call :spin || goto :fail
-    call :hold
     echo.
     echo Environment created. Activate it later with: .venv_lbm\Scripts\activate.bat
     goto :end
@@ -50,16 +43,14 @@ if %ERRORLEVEL%==0 (
 echo Neither Python nor Conda exists in your system.
 goto :fail
 
-:: Runs %SPIN_CMD% with the flow animation (install_animation.ps1). Output is
-:: appended to install.log; the tail of it is printed if the command fails.
+:: Runs every step in %SPIN_STEPS% (one "message|command" per line) with the flow
+:: animation (install_animation.ps1), which keeps running between steps. Output is
+:: appended to install.log; the tail of it is printed if a step fails.
 :spin
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install_animation.ps1" -Message "%SPIN_MSG%" -Command "%SPIN_CMD%" -Log "%SPIN_LOG%" -StartEpoch %START_EPOCH% -MinDuration 25 %SPIN_EXTRA%
-exit /b %ERRORLEVEL%
-
-:: Keeps the animation going until the installer has run for 25 seconds.
-:hold
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install_animation.ps1" -Message "Finalizing environment" -Log "%SPIN_LOG%" -StartEpoch %START_EPOCH% -MinDuration 25 -Hold
-exit /b 0
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install_animation.ps1" -StepsFile "%SPIN_STEPS%" -Log "%SPIN_LOG%" -StartEpoch %START_EPOCH% -MinDuration 25
+set "SPIN_RC=%ERRORLEVEL%"
+del "%SPIN_STEPS%" >nul 2>nul
+exit /b %SPIN_RC%
 
 :fail
 echo.

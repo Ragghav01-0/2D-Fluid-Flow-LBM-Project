@@ -3,7 +3,8 @@
 cd "$(dirname "$0")" || exit 1
 
 LOG_FILE="$PWD/install.log"
-PANEL_H=15          # rows of the flow animation
+PANEL_H=19          # rows of the flow animation (shrunk to fit the terminal)
+PANEL_W=100         # columns of the flow animation (shrunk to fit the terminal)
 LOG_LINES=4         # live log lines shown under the animation
 MIN_DURATION=37     # seconds the whole installer (animation included) runs for
 TOTAL_LINES=$((1 + PANEL_H + 2 + 1 + LOG_LINES))
@@ -21,6 +22,19 @@ FLOW_STATE=$(mktemp)
 
 trap 'printf "\033[?25h"; rm -f "$FLOW_STATE"' EXIT
 trap 'printf "\033[?25h\n\nInterrupted. Log so far: %s\n" "$LOG_FILE"; [ -n "$pid" ] && kill "$pid" 2>/dev/null; exit 130' INT TERM
+
+# Shrinks the animation to fit the terminal; returns 1 if it is too small to animate.
+fit_panel() {
+  local rows cols avail
+  set -- $(stty size 2>/dev/null)
+  rows=${1:-24}; cols=${2:-80}; TERM_COLS=$cols
+  PANEL_W=$(( cols - 2 )); [ $PANEL_W -gt 100 ] && PANEL_W=100
+  avail=$(( rows - 3 - (1 + 2 + 1 + LOG_LINES) ))
+  PANEL_H=19; [ $avail -lt $PANEL_H ] && PANEL_H=$avail
+  [ $(( PANEL_H % 2 )) -eq 0 ] && PANEL_H=$(( PANEL_H - 1 ))
+  TOTAL_LINES=$(( 1 + PANEL_H + 2 + 1 + LOG_LINES ))
+  [ $PANEL_H -ge 7 ] && [ $PANEL_W -ge 60 ]
+}
 
 # Flow animation: potential flow past a cylinder plus a weak oscillating wake.
 # Tracer particles are advected through the velocity field frame by frame (their
@@ -59,7 +73,7 @@ function advance(p, tt,   x, y, s, h, dx, dy, r, i) {
   }
 }
 BEGIN {
-  W = 76; L = 38; cx = 13; cy = int(H / 2); R = 3; R2 = R*R; K = 9; NT = 7; dt = 0.3
+  L = W / 2; cx = int(W * 0.17 + 0.5); cy = int(H / 2); R = (H >= 17) ? 4 : 3; R2 = R*R; K = 9; NT = 7; dt = 0.3
   lim = (H - 2) / 2 - 0.1; M = 2 * int(lim / 0.65 + 0.5); NP = M * K
   split("\033[2m|\033[1;37m|\033[1;34m|\033[1;36m|\033[1;33m|\033[1;31m", C, "|")
   split("1 2 4 64 8 16 32 128", B, " ")
@@ -118,7 +132,7 @@ BEGIN {
 AWK_EOF
 
 render_flow() {
-  LC_ALL=C awk -v t="$1" -v H="$PANEL_H" -v S="$FLOW_STATE" "$FLOW_AWK"
+  LC_ALL=C awk -v t="$1" -v H="$PANEL_H" -v W="$PANEL_W" -v S="$FLOW_STATE" "$FLOW_AWK"
 }
 
 # Caption that changes every few seconds, plus a progress bar towards MIN_DURATION.
@@ -141,7 +155,7 @@ run_step() {
   printf '\n=== %s ===\n' "$msg" >> "$LOG_FILE"
 
   # Not a terminal (CI, piped output): skip the animation, keep the log.
-  if [ ! -t 1 ]; then
+  if [ ! -t 1 ] || ! fit_panel; then
     echo "$msg ..."
     "$@" >> "$LOG_FILE" 2>&1
     local rc=$?
@@ -154,7 +168,7 @@ run_step() {
   : > "$FLOW_STATE"
   "$@" >> "$LOG_FILE" 2>&1 &
   pid=$!
-  width=$(( $(tput cols 2>/dev/null || echo 80) - 6 ))
+  width=$(( TERM_COLS - 6 ))
 
   printf '\033[?25l'
   for ((n = 0; n < TOTAL_LINES; n++)); do echo; done
