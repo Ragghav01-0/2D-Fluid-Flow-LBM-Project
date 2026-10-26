@@ -190,16 +190,16 @@ run_step() {
   done
 
   wait "$pid"
-  local status=$?
+  local rc=$?
   pid=""
   printf '\033[%dA\033[J\033[?25h' "$TOTAL_LINES"
 
-  if [ $status -eq 0 ]; then
+  if [ $rc -eq 0 ]; then
     printf '\033[32m✔\033[0m %s \033[2m(%ds)\033[0m\n' "$msg" "$((SECONDS - start))"
   else
     printf '\033[31m✘\033[0m %s failed. Last log lines (full log: %s):\n\n' "$msg" "$LOG_FILE"
     tail -n 25 "$LOG_FILE"
-    exit $status
+    exit $rc
   fi
 }
 

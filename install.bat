@@ -30,6 +30,15 @@ if %ERRORLEVEL%==0 (
 python --version >nul 2>nul
 if %ERRORLEVEL%==0 (
     echo Python exists in your system.
+    python -c "import struct,sys; sys.exit(0 if (3,11)<=sys.version_info[:2]<=(3,12) and struct.calcsize('P')==8 else 1)" >nul 2>nul
+    if errorlevel 1 (
+        echo.
+        echo Unsupported Python. This project needs 64-bit Python 3.11 or 3.12.
+        echo Your version:
+        python -c "import struct,sys; print(sys.version.split()[0], str(struct.calcsize('P')*8)+'-bit')"
+        echo Install 64-bit Python 3.12 from https://www.python.org/downloads/windows/ and re-run.
+        goto :fail
+    )
     > "%SPIN_STEPS%" echo Creating virtual environment^|python -m venv .venv_lbm
     >> "%SPIN_STEPS%" echo Upgrading pip^|.venv_lbm\Scripts\python.exe -m pip install --upgrade pip
     >> "%SPIN_STEPS%" echo Installing dependencies from requirements.txt^|.venv_lbm\Scripts\python.exe -m pip install -r requirements.txt
