@@ -33,12 +33,12 @@ pixels = ti.Vector.field(3, dtype=ti.f32, shape=(nx, ny))
 ux_target = 0.05
 uy = 0.0
 
+# Zou-He Outlet parameters
+rho_out = 1.0
+
+
 step = ti.field(dtype=ti.i32, shape=())
 
-# Pulsate model parameters
-U0 = 0.05
-A = 0.02
-omega = 0.01
 
 # TRT parameters
 w0 = 4.0 / 9.0
