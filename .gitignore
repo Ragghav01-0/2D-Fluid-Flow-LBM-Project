@@ -211,3 +211,9 @@ venvActivate.sh
 
 # Claude Code project instructions
 CLAUDE.md
+
+# Activation splash animation
+venvAnimation.sh
+
+# Simulation output
+Results/

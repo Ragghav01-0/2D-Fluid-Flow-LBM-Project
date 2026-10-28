@@ -21,14 +21,14 @@ def initialize_object():
     #         mask[x, y] = 0
 
     # Plaque wall modeling - eccentric
-    # for x, y in ti.ndrange((0, nx - 1), (1, ny - 2)):
-    #     x_absolute_distance = abs(x - center)
-    #
-    #     if x_absolute_distance > (plaque_length / 2):
-    #         mask[x,y] = 0
-    #     else:
-    #         y_plaque = (h_max / 2) * (1 + ti.cos(2 * math.pi * x_absolute_distance / plaque_length))
-    #         if y <= y_plaque:
-    #             mask[x,y] = 1
-    #         else:
-    #             mask[x,y] = 0
+    for x, y in ti.ndrange((0, nx - 1), (1, ny - 2)):
+        x_absolute_distance = abs(x - center)
+
+        if x_absolute_distance > (plaque_length / 2):
+            mask[x,y] = 0
+        else:
+            y_plaque = (h_max / 2) * (1 + ti.cos(2 * math.pi * x_absolute_distance / plaque_length))
+            if y <= y_plaque:
+                mask[x,y] = 1
+            else:
+                mask[x,y] = 0

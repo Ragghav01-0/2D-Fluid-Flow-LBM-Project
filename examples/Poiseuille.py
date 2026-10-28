@@ -8,4 +8,3 @@ def poiseuille():
         # sets top and bottom row as an obstacle
         mask[x, 0] = 1
         mask[x, ny - 1] = 1
-
