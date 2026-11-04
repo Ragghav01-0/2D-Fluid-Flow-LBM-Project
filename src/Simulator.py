@@ -27,11 +27,11 @@ initial_fluid()
 
 # initialize CLI header
 CLI_header()
-# gui = ti.GUI("LBM Simulation", res=(nx, ny))
+gui = ti.GUI("LBM Simulation", res=(nx, ny))
 
 sysreport = False
 
-while not converged:
+while gui.running:
 
     # EDS loop
     if is_unstable[None] == 1 and not sysreport:
@@ -74,10 +74,10 @@ while not converged:
     macro_update()
 
     # GUI pixel update loop
-    # if step[None] % 5 == 0:
-    #    updating_pixels()
-    #    gui.set_image(pixels)
-    #    gui.show()
+    if step[None] % 5 == 0:
+       updating_pixels()
+       gui.set_image(pixels)
+       gui.show()
 
     if step[None] > 0 and step[None] % interval == 0:
         Convergence_Checker()

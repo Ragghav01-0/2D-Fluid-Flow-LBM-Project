@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<!--
+=====================================================================================
+ LBM CONTROL PANEL  —  add-on dashboard for the Taichi D2Q9 / TRT arterial-flow solver
+=====================================================================================
+ Layout : left w-2/3  = simulation canvas + live telemetry
+          right w-1/3 = control & configuration sidebar
+ Stack  : HTML5 + Tailwind (Play CDN) + vanilla JS. No build step.
+
+ BACKEND MODE vs MOCK MODE
+ -------------------------
+ On load the page tries to open a WebSocket to CFG.WS_URL. If nothing answers within
+ CFG.WS_TIMEOUT_MS it falls back to a MOCK solver (analytic, NOT lattice Boltzmann) so
+ every control can be tried without the backend. A badge in the header always shows
+ which mode is active. Use the "Retry" button after you start your backend.
+
+ WEBSOCKET PROTOCOL  (JSON text frames unless noted)
+ ---------------------------------------------------
+ Client -> Server
+   {type:"hello"}                                   sent once on connect (followed by params + geometry)
+   {type:"command", cmd:"start" | "pause" | "reset"}
+   {type:"params",  params:{                        live-tunable, debounced ~60 ms
+        u_max,            // inlet centre-line speed, lattice units (0.01 .. 0.20)
+        nu_lat, tau,      // lattice viscosity and relaxation time (tau = 3*nu + 0.5)
+        liquid,           // "blood" | "plasma" | "water" | "custom"
+        steps_per_frame,  // solver steps between frames sent to the UI
+        turbo,            // true = skip most frames for maximum throughput
+        viz_mode }}       // "velocity" | "pressure" | "streamlines" | "wss"
+   {type:"geometry", geometry:{                     only sent when the user presses "Apply to grid"
+        symmetry,         // "sym" | "asym"
+        height_ratio,     // total H_clot/H_channel, 0 .. 0.9
+        length_nodes,     // L_clot in lattice nodes
+        eccentricity,     // -1 .. +1  (+ = more of the clot on the TOP wall); 0 when symmetric
+        x_center_frac,    // clot centre as a fraction of domain length
+        top_height_nodes, // peak intrusion from the top wall    (ready to build the mask)
+        bottom_height_nodes,
+        profile:"cosine",
+        reset }}          // true = re-initialise the flow field after rebuilding the mask
+
+ Server -> Client
+   {type:"telemetry", step, residual, dp, peak_u, peak_wss, mlups, [ft], [phase]}
+        dp = pressure difference inlet - outlet (lattice units); phase (0..4) is optional,
+        if omitted the UI classifies the phase itself from step count / residual.
+   {type:"status",    running:bool, step:int}
+   {type:"log",       level:"info|warn|err|sys", msg:"..."}
+   BINARY frame (ArrayBuffer):  header = 5 x 4 bytes, then float32 payload
+        uint32 width, uint32 height, uint32 channels, float32 vmin, float32 vmax,
+        float32 data[width*height*channels]   // planar: all of channel 0, then channel 1
+        channels = 1 : scalar field (velocity magnitude, pressure, wall shear stress)
+        channels = 2 : [u..., v...]  (used for streamlines / tracer particles)
+        NaN marks solid nodes (and "not applicable" nodes, e.g. fluid interior in WSS mode)
+        The frame can be down-sampled (e.g. 512x128); the client scales it to the canvas.
+
+ PYTHON SIDE (sketch, FastAPI)
+ -----------------------------
+   @app.websocket("/ws")
+   async def ws(sock):
+       await sock.accept()
+       async def rx():                      # UI -> solver
+           while True:
+               msg = json.loads(await sock.receive_text())
+               shared_queue.put(msg)        # the Taichi loop drains this between steps
+       async def tx():                      # solver -> UI
+           while True:
+               frame = out_queue.get()      # build with np.float32 arrays + struct.pack("<IIIff", ...)
+               await sock.send_bytes(frame)
+       await asyncio.gather(rx(), tx())
+   Keep Taichi kernels in their own thread; apply "params"/"geometry" messages only between
+   kernel launches, and rebuild the solid mask (Initialize_Object) on "geometry".
+=====================================================================================
+-->
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LBM Control Panel</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // Dark "lab" palette + monospace stack for numbers
+  tailwind.config = {
+    theme: { extend: {
+      colors: { lab: { 900:'#0a0d12', 800:'#10151c', 700:'#161c25', 600:'#1f2733', 500:'#2b3647' } },
+      fontFamily: { mono: ['ui-monospace','SFMono-Regular','Menlo','Consolas','monospace'] }
+    } }
+  };
+</script>
+<style type="text/tailwindcss">
+  @layer components {
+    .panel      { @apply rounded-lg border border-lab-500/60 bg-lab-800; }
+    .sec-title  { @apply mb-3 flex items-center justify-between text-[11px] font-semibold uppercase tracking-widest text-slate-400; }
+    .lbl        { @apply text-xs text-slate-400; }
+    .val        { @apply font-mono text-xs text-cyan-300; }
+    .field      { @apply w-full rounded-md border border-lab-500 bg-lab-900 px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-400; }
+    .btn        { @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-lab-500 bg-lab-700 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-500 hover:bg-lab-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-40; }
+    .btn-primary{ @apply border-cyan-400 bg-cyan-500 text-slate-950 hover:bg-cyan-400 hover:border-cyan-300; }
+    .seg        { @apply block rounded-md border border-lab-500 bg-lab-900 px-2 py-2 text-center text-xs text-slate-300 transition hover:border-slate-500 peer-checked:border-cyan-400 peer-checked:bg-cyan-400/10 peer-checked:text-cyan-300 peer-focus-visible:ring-2 peer-focus-visible:ring-cyan-400/60; }
+  }
+  /* thin dark scrollbars */
+  * { scrollbar-width: thin; scrollbar-color: #2b3647 transparent; }
+</style>
+</head>
+
+<body class="h-screen overflow-hidden bg-lab-900 font-sans text-slate-200 antialiased">
+<!-- STRICT 2/3 : 1/3 SPLIT -->
+<div class="flex h-full min-w-[1100px]">
+
+  <!-- ============================ LEFT 2/3 : SIMULATION AREA ============================ -->
+  <main class="flex h-full w-2/3 flex-col border-r border-lab-500/60">
+
+    <header class="flex h-12 shrink-0 items-center justify-between border-b border-lab-500/60 bg-lab-800 px-4">
+      <div class="flex items-baseline gap-3">
+        <h1 class="text-sm font-semibold tracking-wide text-slate-100">LBM Arterial Flow Lab</h1>
+        <span class="font-mono text-[11px] text-slate-500">D2Q9 · TRT · 1024 × 256 · Taichi CPU</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="connBadge" class="rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-0.5 font-mono text-[11px] text-amber-300">MOCK · no backend</span>
+        <button id="btnReconnect" class="btn !px-2 !py-1" title="Try to connect to the Python backend again">Retry</button>
+      </div>
+    </header>
+
+    <div class="flex-1 space-y-4 overflow-y-auto p-4">
+
+      <!-- Canvas panel -->
+      <section class="panel overflow-hidden">
+        <div class="relative aspect-[4/1] w-full bg-lab-900">
+          <canvas id="fluid"   width="1024" height="256" class="absolute inset-0 h-full w-full"></canvas>
+          <canvas id="tracers" width="1024" height="256" class="pointer-events-none absolute inset-0 h-full w-full"></canvas>
+          <!-- overlays -->
+          <div id="phaseBadge" class="absolute left-3 top-3 rounded-md border border-cyan-400/40 bg-lab-900/80 px-2 py-1 font-mono text-[11px] text-cyan-300 backdrop-blur">P– · waiting</div>
+          <div id="vizBadge"   class="absolute right-3 top-3 rounded-md border border-lab-500 bg-lab-900/80 px-2 py-1 font-mono text-[11px] text-slate-300 backdrop-blur">Velocity |u|</div>
+          <div class="absolute bottom-2 left-3 font-mono text-[10px] text-slate-400/80">inlet →</div>
+          <div class="absolute bottom-2 right-3 font-mono text-[10px] text-slate-400/80">→ outlet</div>
+        </div>
+        <!-- colour legend -->
+        <div class="flex items-center gap-3 border-t border-lab-500/60 px-3 py-2">
+          <span id="legendMin" class="w-16 text-right font-mono text-[11px] text-slate-400">0</span>
+          <canvas id="legend" width="256" height="1" class="h-3 flex-1 rounded-sm"></canvas>
+          <span id="legendMax" class="w-16 font-mono text-[11px] text-slate-400">1</span>
+          <span id="legendUnit" class="w-28 truncate font-mono text-[11px] text-slate-500">lu / step</span>
+        </div>
+      </section>
+
+      <!-- Telemetry cards (filled by JS) -->
+      <section id="cards" class="grid grid-cols-4 gap-3"></section>
+
+      <!-- Sparklines -->
+      <section class="grid grid-cols-2 gap-3">
+        <div class="panel p-3">
+          <div class="mb-1 flex justify-between"><span class="lbl">Pressure drop ΔP (inlet − outlet)</span><span id="sparkDpVal" class="val">—</span></div>
+          <div class="h-24"><canvas id="sparkDp" class="block h-full w-full"></canvas></div>
+        </div>
+        <div class="panel p-3">
+          <div class="mb-1 flex justify-between"><span class="lbl">Convergence residual (log₁₀)</span><span id="sparkResVal" class="val">—</span></div>
+          <div class="h-24"><canvas id="sparkRes" class="block h-full w-full"></canvas></div>
+        </div>
+      </section>
+
+      <p class="px-1 text-[11px] leading-relaxed text-slate-500">
+        Science-fair model: 2D, Newtonian fluid, rigid walls, lattice units. Whole blood is actually shear-thinning,
+        and real arteries are 3D and elastic — read trends, not clinical numbers.
+      </p>
+    </div>
+  </main>
+
+  <!-- ============================ RIGHT 1/3 : CONTROL SIDEBAR ============================ -->
+  <aside class="h-full w-1/3 overflow-y-auto bg-lab-800/60">
+
+    <!-- 1. EXECUTION -->
+    <section class="border-b border-lab-500/50 px-4 py-4">
+      <div class="sec-title"><span>1 · Execution</span>
+        <span class="flex items-center gap-2 normal-case tracking-normal">
+          <span id="statusDot" class="h-2.5 w-2.5 rounded-full bg-slate-500"></span>
+          <span id="statusText" class="font-mono text-[11px] text-slate-300">IDLE</span>
+        </span>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button id="btnStart" class="btn btn-primary">▶ Start</button>
+        <button id="btnReset" class="btn">↺ Reset</button>
+      </div>
+      <div class="mt-3">
+        <div class="flex justify-between"><label class="lbl" for="speed">Solver steps per frame</label><span id="speedVal" class="val">20</span></div>
+        <input id="speed" type="range" min="1" max="200" step="1" value="20" class="w-full accent-cyan-400">
+      </div>
+      <label class="mt-2 flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+        <input id="chkTurbo" type="checkbox" class="accent-cyan-400">
+        Turbo — skip rendering for max speed <span class="text-slate-500">(≈10× steps)</span>
+      </label>
+      <p class="mt-1 text-[11px] text-slate-500">Shortcut: <kbd class="rounded border border-lab-500 px-1 font-mono">Space</kbd> start / pause</p>
+    </section>
+
+    <!-- 2. FLUID PROPERTIES -->
+    <section class="border-b border-lab-500/50 px-4 py-4">
+      <div class="sec-title"><span>2 · Fluid properties</span></div>
+      <label class="lbl" for="liquid">Liquid type</label>
+      <select id="liquid" class="field mt-1">
+        <option value="blood">Blood (Whole)</option>
+        <option value="plasma">Blood Plasma</option>
+        <option value="water">Water</option>
+        <option value="custom">Custom Viscosity</option>
+      </select>
+
+      <div id="nuCustomWrap" class="mt-2 hidden">
+        <label class="lbl" for="nuCustom">Custom ν (lattice units)</label>
+        <input id="nuCustom" type="number" min="0.005" max="0.5" step="0.001" value="0.05" class="field mt-1 font-mono">
+      </div>
+
+      <div class="mt-3 grid grid-cols-3 gap-2 rounded-md border border-lab-500/60 bg-lab-900 p-2">
+        <div><div class="lbl">ν (lattice)</div><div id="roNu" class="val text-sm">—</div></div>
+        <div><div class="lbl">τ = 3ν + ½</div><div id="roTau" class="val text-sm">—</div></div>
+        <div><div class="lbl">Re = U·H/ν</div><div id="roRe" class="val text-sm">—</div></div>
+      </div>
+      <div id="roNuPhys" class="mt-1 font-mono text-[11px] text-slate-500"></div>
+      <div id="roWarn" class="mt-1 min-h-[1rem] text-[11px] text-amber-300"></div>
+
+      <div class="mt-3">
+        <div class="flex items-end justify-between">
+          <label class="lbl" for="umax">Inlet speed U<sub>max</sub> (lattice units)</label>
+          <input id="umaxNum" type="number" min="0.01" max="0.2" step="0.005" value="0.05" class="field !w-20 font-mono">
+        </div>
+        <input id="umax" type="range" min="0.01" max="0.2" step="0.005" value="0.05" class="mt-1 w-full accent-cyan-400">
+      </div>
+    </section>
+
+    <!-- 3. CLOT / OBSTACLE -->
+    <section class="border-b border-lab-500/50 px-4 py-4">
+      <div class="sec-title"><span>3 · Vascular clot / obstacle</span>
+        <span id="dirtyBadge" class="hidden rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] normal-case tracking-normal text-amber-300">unapplied changes</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <label class="cursor-pointer"><input type="radio" name="sym" value="sym" class="peer sr-only" checked><span class="seg">Symmetrical clot</span></label>
+        <label class="cursor-pointer"><input type="radio" name="sym" value="asym" class="peer sr-only"><span class="seg">Asymmetrical clot</span></label>
+      </div>
+
+      <div class="mt-3">
+        <div class="flex justify-between"><label class="lbl" for="heightRatio">Clot height ratio H<sub>clot</sub> / H<sub>channel</sub></label><span id="heightRatioVal" class="val">40 %</span></div>
+        <input id="heightRatio" type="range" min="0" max="90" step="1" value="40" class="w-full accent-cyan-400">
+      </div>
+      <div class="mt-3">
+        <div class="flex justify-between"><label class="lbl" for="clotLen">Clot length L<sub>clot</sub> (nodes)</label><span id="clotLenVal" class="val">200</span></div>
+        <input id="clotLen" type="range" min="20" max="400" step="5" value="200" class="w-full accent-cyan-400">
+      </div>
+      <div id="eccWrap" class="mt-3 opacity-40">
+        <div class="flex justify-between"><label class="lbl" for="ecc">Asymmetry / eccentricity (bottom ◂ ▸ top)</label><span id="eccVal" class="val">0 %</span></div>
+        <input id="ecc" type="range" min="-100" max="100" step="5" value="0" disabled class="w-full accent-cyan-400">
+      </div>
+
+      <!-- live schematic preview -->
+      <div class="mt-4">
+        <div class="mb-1 flex items-center justify-between">
+          <span class="lbl">Schematic preview <span class="text-slate-600">(solid = pending, dashed = on grid)</span></span>
+        </div>
+        <div class="overflow-hidden rounded-md border border-lab-500 bg-lab-900">
+          <canvas id="preview" width="800" height="200" class="block aspect-[4/1] w-full"></canvas>
+        </div>
+        <div id="geomReadout" class="mt-1 font-mono text-[11px] text-slate-400"></div>
+      </div>
+
+      <label class="mt-3 flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+        <input id="chkReset" type="checkbox" class="accent-cyan-400" checked> Reset flow field when applying
+      </label>
+      <div class="mt-2 grid grid-cols-2 gap-2">
+        <button id="btnApply"  class="btn btn-primary">Apply to grid</button>
+        <button id="btnRevert" class="btn">Revert</button>
+      </div>
+    </section>
+
+    <!-- 4. LOG / NARRATIVE -->
+    <section class="border-b border-lab-500/50 px-4 py-4">
+      <div class="sec-title"><span>4 · Stage narrative &amp; log</span>
+        <button id="btnClearLog" class="rounded border border-lab-500 px-1.5 py-0.5 text-[10px] normal-case tracking-normal text-slate-400 hover:text-slate-200">clear</button>
+      </div>
+      <div id="logBox" class="h-60 overflow-y-auto rounded-md border border-lab-500 bg-[#06080b] p-2 font-mono text-[11px]"></div>
+    </section>
+
+    <!-- 5. VISUALIZATION -->
+    <section class="px-4 py-4">
+      <div class="sec-title"><span>5 · Visualization mode</span></div>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="cursor-pointer"><input type="radio" name="viz" value="velocity" class="peer sr-only" checked><span class="seg">Velocity magnitude</span></label>
+        <label class="cursor-pointer"><input type="radio" name="viz" value="pressure" class="peer sr-only"><span class="seg">Pressure contours</span></label>
+        <label class="cursor-pointer"><input type="radio" name="viz" value="streamlines" class="peer sr-only"><span class="seg">Streamlines / tracers</span></label>
+        <label class="cursor-pointer"><input type="radio" name="viz" value="wss" class="peer sr-only"><span class="seg">Wall shear stress</span></label>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ==================================================================================
+   0. CONFIG
+   ================================================================================== */
+const CFG = {
+  WS_URL: 'ws://localhost:8000/ws',  // <-- point this at your FastAPI / websockets bridge
+  WS_TIMEOUT_MS: 1500,
+  NX: 1024, NY: 256,                 // real solver grid (used for unit maths + geometry)
+  MOCK: { w: 256, h: 64 },           // resolution of the mock field (scaled up to the canvas)
+  CLOT_X: 0.45,                      // clot centre as a fraction of domain length
+  RES_TOL: 1e-6,                     // "converged" threshold
+  HIST: 240,                         // sparkline history length
+  PARAM_DEBOUNCE_MS: 60,
+};
+
+/* Liquids. nuPhys in m²/s at 37 °C (mu/rho). Lattice viscosity is obtained by a fixed
+   similarity scale pinned so that water -> nu_lat = 0.02. This is a placeholder mapping:
+   replace nuLatFor() with your solver's real unit conversion (dx, dt) when you have it. */
+const NU_REF = { phys: 0.69e-6, lat: 0.02 };
+const LIQUIDS = {
+  blood:  { label: 'Blood (Whole)',  nuPhys: 3.3e-6,  note: 'mu~3.5 mPa·s, rho~1060 (treated as Newtonian)' },
+  plasma: { label: 'Blood Plasma',   nuPhys: 1.27e-6, note: 'mu~1.3 mPa·s, rho~1025' },
+  water:  { label: 'Water',          nuPhys: 0.69e-6, note: 'mu~0.69 mPa·s at 37 °C' },
+  custom: { label: 'Custom',         nuPhys: null,    note: 'user-defined lattice viscosity' },
+};
+
+/* ==================================================================================
+   1. STATE
+   ================================================================================== */
+const state = {
+  running: false, step: 0, ft: 0, residual: 1, phase: -1,
+  speed: 20, turbo: false,
+  liquid: 'blood', nuCustom: 0.05, nuLat: 0, tau: 0, umax: 0.05,
+  viz: 'velocity',
+  geom:    { symmetry: 'sym', heightRatio: 0.4, length: 200, ecc: 0 },  // pending (edited in the UI)
+  applied: null,                                                        // what is on the grid
+  live: false,                                                          // true = real backend connected
+};
+state.applied = { ...state.geom };
+
+/* ==================================================================================
+   2. SMALL HELPERS
+   ================================================================================== */
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const fmtNum = v => {
+  if (!Number.isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a === 0) return '0';
+  return (a < 0.01 || a >= 1e4) ? v.toExponential(2) : v.toFixed(a < 1 ? 4 : 2);
+};
+
+const LOGCLS = {
+  info: 'text-slate-300', phase: 'text-cyan-300 font-semibold', warn: 'text-amber-300',
+  err: 'text-red-400', cmd: 'text-emerald-300', sys: 'text-violet-300',
+};
+function log(msg, level = 'info') {
+  const box = $('logBox');
+  const row = document.createElement('div');
+  row.className = (LOGCLS[level] || LOGCLS.info) + ' leading-relaxed';
+  const ts = document.createElement('span');
+  ts.className = 'mr-2 text-slate-500';
+  ts.textContent = '[' + String(state.step).padStart(6, '0') + ']';
+  row.append(ts, document.createTextNode(msg));       // textContent-style: no HTML injection
+  box.append(row);
+  while (box.childElementCount > 300) box.firstChild.remove();
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ==================================================================================
+   3. COLOUR MAPS
+   ================================================================================== */
+function makeLUT(stops) {
+  const lut = new Uint8ClampedArray(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255; let k = 0;
+    while (k < stops.length - 2 && t > stops[k + 1][0]) k++;
+    const [t0, c0] = stops[k], [t1, c1] = stops[k + 1];
+    const f = clamp((t - t0) / (t1 - t0), 0, 1);
+    for (let c = 0; c < 3; c++) lut[i * 3 + c] = c0[c] + (c1[c] - c0[c]) * f;
+  }
+  return lut;
+}
+const MODES = {
+  velocity:    { label: 'Velocity |u|',        unit: 'lu / step',  lut: makeLUT([[0,[48,18,59]],[.15,[70,107,227]],[.3,[40,188,235]],[.45,[50,242,150]],[.6,[164,252,60]],[.75,[250,186,57]],[.9,[225,80,22]],[1,[122,4,3]]]) },
+  pressure:    { label: 'Pressure',            unit: 'lu (cs²·Δρ)', lut: makeLUT([[0,[59,76,192]],[.5,[221,221,221]],[1,[180,4,38]]]) },
+  streamlines: { label: 'Streamlines / tracers', unit: '|u|, lu / step', lut: makeLUT([[0,[14,22,34]],[1,[40,84,112]]]) },
+  wss:         { label: 'Wall shear stress',   unit: 'lu',         lut: makeLUT([[0,[0,0,4]],[.25,[87,16,110]],[.5,[188,55,84]],[.75,[249,142,9]],[1,[252,255,164]]]) },
+};
+const SOLID = [28, 35, 46];   // colour for NaN (solid / not-applicable) nodes
+
+/* ==================================================================================
+   4. PHYSICS READOUTS (nu, tau, Re, warnings)
+   ================================================================================== */
+function nuLatFor(key) {
+  return key === 'custom' ? state.nuCustom : LIQUIDS[key].nuPhys / NU_REF.phys * NU_REF.lat;
+}
+function updateFluid() {
+  state.nuLat = nuLatFor(state.liquid);
+  state.tau = 3 * state.nuLat + 0.5;
+  const re = state.umax * CFG.NY / state.nuLat;
+  $('roNu').textContent = state.nuLat.toFixed(4);
+  $('roTau').textContent = state.tau.toFixed(3);
+  $('roRe').textContent = re.toFixed(0);
+  const L = LIQUIDS[state.liquid];
+  $('roNuPhys').textContent = state.liquid === 'custom' ? L.note
+    : `ν_phys = ${L.nuPhys.toExponential(2)} m²/s · ${L.note}`;
+  const warns = [];
+  if (state.tau < 0.515) warns.push('τ very close to 0.5 → likely unstable');
+  if (state.umax > 0.1)  warns.push(`U_max > 0.1 (Ma≈${(state.umax / 0.577).toFixed(2)}) → compressibility error grows`);
+  $('roWarn').textContent = warns.join(' · ');
+}
+
+/* ==================================================================================
+   5. CLOT GEOMETRY (shared by preview, mock solver, and the message to the backend)
+   ================================================================================== */
+// Peak intrusion (fraction of channel height) from the top / bottom wall.
+function shares(g) {
+  const tot = g.heightRatio, e = g.symmetry === 'sym' ? 0 : g.ecc;
+  return { top: tot * (1 + e) / 2, bot: tot * (1 - e) / 2 };
+}
+// Cosine bump profile, x = fraction of domain length, returns 0..1
+function bump(g, x) {
+  const d = (x - CFG.CLOT_X) / (g.length / CFG.NX);
+  return Math.abs(d) >= 0.5 ? 0 : 0.5 * (1 + Math.cos(2 * Math.PI * d));
+}
+const sameGeom = (a, b) => a.symmetry === b.symmetry && a.heightRatio === b.heightRatio &&
+                           a.length === b.length && a.ecc === b.ecc;
+
+function drawPreview() {
+  const cv = $('preview'), c = cv.getContext('2d'), W = cv.width, H = cv.height;
+  const T = 16, B = H - 16, Hc = B - T;
+  c.clearRect(0, 0, W, H);
+  c.fillStyle = '#0b1118'; c.fillRect(0, T, W, Hc);
+
+  const pathFor = (g, side, close) => {            // side: 'top' | 'bot'
+    const s = shares(g)[side], n = 240;
+    c.beginPath();
+    c.moveTo(0, side === 'top' ? T : B);
+    for (let i = 0; i <= n; i++) {
+      const x = i / n, px = x * W, h = s * bump(g, x) * Hc;
+      c.lineTo(px, side === 'top' ? T + h : B - h);
+    }
+    c.lineTo(W, side === 'top' ? T : B);
+    if (close) c.closePath();
+  };
+
+  // applied geometry (dashed outline)
+  if (!sameGeom(state.geom, state.applied)) {
+    c.save(); c.setLineDash([5, 4]); c.strokeStyle = 'rgba(148,163,184,.7)'; c.lineWidth = 1.5;
+    pathFor(state.applied, 'top', false); c.stroke();
+    pathFor(state.applied, 'bot', false); c.stroke();
+    c.restore();
+  }
+  // pending geometry (solid)
+  c.fillStyle = 'rgba(251,146,60,.30)'; c.strokeStyle = '#fb923c'; c.lineWidth = 2;
+  for (const side of ['top', 'bot']) { pathFor(state.geom, side, true); c.fill(); pathFor(state.geom, side, false); c.stroke(); }
+
+  // walls + centre line + flow arrow
+  c.strokeStyle = '#64748b'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(0, T); c.lineTo(W, T); c.moveTo(0, B); c.lineTo(W, B); c.stroke();
+  c.save(); c.setLineDash([2, 6]); c.strokeStyle = 'rgba(148,163,184,.25)'; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(0, H / 2); c.lineTo(W, H / 2); c.stroke(); c.restore();
+  c.fillStyle = '#94a3b8'; c.font = '12px ui-monospace, monospace';
+  c.fillText('flow →', 8, H / 2 - 6);
+}
+
+function updateGeomUI() {
+  const g = state.geom, sh = shares(g);
+  $('heightRatioVal').textContent = Math.round(g.heightRatio * 100) + ' %';
+  $('clotLenVal').textContent = g.length;
+  $('eccVal').textContent = (g.ecc > 0 ? '+' : '') + Math.round(g.ecc * 100) + ' %';
+  const asym = g.symmetry === 'asym';
+  $('ecc').disabled = !asym;
+  $('eccWrap').classList.toggle('opacity-40', !asym);
+  const topN = Math.round(sh.top * CFG.NY), botN = Math.round(sh.bot * CFG.NY);
+  const gap = CFG.NY - topN - botN;
+  $('geomReadout').textContent =
+    `top ${topN} · bottom ${botN} · throat ${gap} nodes (${(gap / CFG.NY * 100).toFixed(0)} % open)`;
+  const dirty = !sameGeom(g, state.applied);
+  $('dirtyBadge').classList.toggle('hidden', !dirty);
+  drawPreview();
+}
+
+/* ==================================================================================
+   6. PHASE NARRATIVE
+   ================================================================================== */
+const PHASES = [
+  { short: 'Startup', name: 'Transient Startup & Entrance Flow Buildup',
+    text: t => ['Flow is developing from rest; the Zou-He inlet profile is propagating downstream.',
+                'Acoustic pressure waves are still crossing the domain, so early numbers are not physical.'] },
+  { short: 'Upstream pressure', name: 'Pre-Clot Stagnation & Upstream Pressure Build',
+    text: t => ['Fluid decelerates ahead of the clot and pressure builds upstream.',
+                `Pressure drop so far: ΔP = ${fmtNum(t.dp)} lu.`] },
+  { short: 'Jet / peak shear', name: 'Jet Acceleration & Peak Shear Stress through Constriction',
+    text: t => [`Flow accelerates through the throat: peak |u| = ${fmtNum(t.peakU)} lu (${(t.peakU / state.umax).toFixed(1)}× inlet).`,
+                `Peak wall shear stress ≈ ${fmtNum(t.peakWSS)} lu at the narrowest section.`] },
+  { short: 'Wake / recirculation', name: 'Post-Clot Recirculation Zone & Vortex Shedding',
+    text: t => ['The jet separates behind the clot and a recirculation zone forms.',
+                'Unsteady vortex shedding is only expected at higher Re / severe blockage; at low Re the wake settles to steady.'] },
+  { short: 'Converged', name: 'Steady-State / Converged Flow Field',
+    text: t => [`Residual ${t.residual.toExponential(1)} < ${CFG.RES_TOL.toExponential(0)}: ΔP and peak WSS are stable.`,
+                'Safe to record measurements for this geometry.'] },
+];
+
+// UI-side classification, used whenever the backend does not send a "phase" field.
+// Time is measured in flow-through times  ft = step * U_max / NX  (domain lengths travelled at U_max).
+function classifyPhase(t) {
+  const ft = t.ft ?? t.step * state.umax / CFG.NX;
+  if (ft > 0.3 && t.residual < CFG.RES_TOL) return 4;
+  if (ft < 0.10) return 0;
+  if (state.applied.heightRatio < 0.10) return 0;      // no meaningful clot: skip clot-specific phases
+  if (ft < 0.30) return 1;
+  if (ft < 0.60) return 2;
+  return 3;
+}
+function enterPhase(p, t) {
+  state.phase = p;
+  if (p < 0) { $('phaseBadge').textContent = 'P– · waiting'; return; }
+  $('phaseBadge').textContent = `P${p} · ${PHASES[p].short}`;
+  log(`PHASE ${p}: ${PHASES[p].name}`, 'phase');
+  for (const line of PHASES[p].text(t)) log('  ' + line, 'info');
+}
+
+/* ==================================================================================
+   7. TELEMETRY (cards, sparklines, status) — fed by mock or backend
+   ================================================================================== */
+const CARDS = [
+  ['step', 'Step'], ['ft', 'Flow-throughs'], ['mlups', 'MLUPs'], ['res', 'Residual'],
+  ['dp', 'ΔP in→out'], ['peakU', 'Peak |u|'], ['peakWSS', 'Peak WSS'], ['re', 'Re'],
+];
+$('cards').innerHTML = CARDS.map(([id, label]) =>
+  `<div class="panel px-3 py-2"><div class="lbl">${label}</div><div id="card-${id}" class="mt-0.5 font-mono text-base text-slate-100">—</div></div>`).join('');
+const setCard = (id, txt) => { $('card-' + id).textContent = txt; };
+
+const hist = { dp: [], res: [] };
+let lastHistStep = -1, lastLogBucket = 0;
+
+function spark(canvas, data, color) {
+  const dpr = window.devicePixelRatio || 1, W = canvas.clientWidth, H = canvas.clientHeight;
+  if (!W || !H) return;
+  if (canvas.width !== Math.round(W * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+  const c = canvas.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  c.strokeStyle = 'rgba(148,163,184,.12)'; c.lineWidth = 1;
+  for (let k = 1; k < 4; k++) { const y = H * k / 4; c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+  if (data.length < 2) return;
+  let mn = Math.min(...data), mx = Math.max(...data);
+  if (mx - mn < 1e-12) mx = mn + 1;
+  c.strokeStyle = color; c.lineWidth = 1.5; c.beginPath();
+  data.forEach((v, i) => {
+    const x = i / (data.length - 1) * W, y = H - 4 - (v - mn) / (mx - mn) * (H - 8);
+    i ? c.lineTo(x, y) : c.moveTo(x, y);
+  });
+  c.stroke();
+}
+
+function refreshStatus() {
+  const conv = state.phase === 4;
+  let label, dot;
+  if (state.running) { label = conv ? 'RUNNING · CONVERGED' : 'RUNNING'; dot = 'bg-emerald-400 animate-pulse'; }
+  else if (state.step === 0) { label = 'IDLE'; dot = 'bg-slate-500'; }
+  else { label = conv ? 'PAUSED · CONVERGED' : 'PAUSED'; dot = conv ? 'bg-cyan-400' : 'bg-amber-400'; }
+  $('statusDot').className = 'h-2.5 w-2.5 rounded-full ' + dot;
+  $('statusText').textContent = label;
+  $('btnStart').textContent = state.running ? '⏸ Pause' : '▶ Start';
+}
+
+function ingestTelemetry(t) {
+  state.step = t.step;
+  state.ft = t.ft ?? t.step * state.umax / CFG.NX;
+  state.residual = t.residual;
+  const full = { ...t, ft: state.ft };
+
+  setCard('step', String(t.step));
+  setCard('ft', state.ft.toFixed(2));
+  setCard('mlups', t.mlups != null ? t.mlups.toFixed(0) : '—');
+  setCard('res', t.residual.toExponential(1));
+  setCard('dp', fmtNum(t.dp));
+  setCard('peakU', fmtNum(t.peakU));
+  setCard('peakWSS', fmtNum(t.peakWSS));
+  setCard('re', (state.umax * CFG.NY / state.nuLat).toFixed(0));
+
+  const p = t.phase != null ? t.phase : classifyPhase(full);
+  if (p !== state.phase) enterPhase(p, full);
+
+  if (t.step !== lastHistStep) {                      // only record when the solver actually advanced
+    lastHistStep = t.step;
+    hist.dp.push(t.dp); hist.res.push(Math.log10(Math.max(t.residual, 1e-12)));
+    for (const k of ['dp', 'res']) if (hist[k].length > CFG.HIST) hist[k].shift();
+    spark($('sparkDp'), hist.dp, '#22d3ee');
+    spark($('sparkRes'), hist.res, '#f472b6');
+    $('sparkDpVal').textContent = fmtNum(t.dp);
+    $('sparkResVal').textContent = t.residual.toExponential(1);
+    // periodic telemetry line in the console
+    const bucket = Math.floor(t.step / 5000);
+    if (bucket > lastLogBucket) {
+      lastLogBucket = bucket;
+      log(`res=${t.residual.toExponential(1)}  ΔP=${fmtNum(t.dp)}  peak|u|=${fmtNum(t.peakU)}  peakWSS=${fmtNum(t.peakWSS)}`, 'info');
+    }
+  }
+  refreshStatus();
+}
+
+/* ==================================================================================
+   8. RENDERING (frame -> canvas), legend, tracer particles
+   ================================================================================== */
+const fluidCv = $('fluid'), fluidCtx = fluidCv.getContext('2d');
+const off = document.createElement('canvas'), offCtx = off.getContext('2d');
+let img = null, lastFrame = null;
+fluidCtx.imageSmoothingEnabled = true;
+
+/* frame = {mode, w, h, channels, vmin, vmax, data:Float32Array}  (see protocol at top) */
+function renderFrame(f) {
+  lastFrame = f;
+  const { w, h, channels, vmin, vmax, data } = f;
+  if (off.width !== w || off.height !== h) { off.width = w; off.height = h; img = offCtx.createImageData(w, h); }
+  const lut = MODES[f.mode].lut, n = w * h, rng = (vmax - vmin) || 1, px = img.data;
+  for (let i = 0; i < n; i++) {
+    const v = channels >= 2 ? Math.hypot(data[i], data[n + i]) : data[i];
+    const o = i * 4;
+    if (!Number.isFinite(v)) { px[o] = SOLID[0]; px[o + 1] = SOLID[1]; px[o + 2] = SOLID[2]; px[o + 3] = 255; continue; }
+    const k = ((clamp((v - vmin) / rng, 0, 1) * 255) | 0) * 3;
+    px[o] = lut[k]; px[o + 1] = lut[k + 1]; px[o + 2] = lut[k + 2]; px[o + 3] = 255;
+  }
+  offCtx.putImageData(img, 0, 0);
+  fluidCtx.drawImage(off, 0, 0, fluidCv.width, fluidCv.height);
+  $('legendMin').textContent = fmtNum(vmin);
+  $('legendMax').textContent = fmtNum(vmax);
+}
+
+function drawLegend() {
+  const cv = $('legend'), c = cv.getContext('2d'), lut = MODES[state.viz].lut;
+  const im = c.createImageData(256, 1);
+  for (let i = 0; i < 256; i++) { im.data[i*4] = lut[i*3]; im.data[i*4+1] = lut[i*3+1]; im.data[i*4+2] = lut[i*3+2]; im.data[i*4+3] = 255; }
+  c.putImageData(im, 0, 0);
+  $('legendUnit').textContent = MODES[state.viz].unit;
+  $('vizBadge').textContent = MODES[state.viz].label;
+}
+
+/* Tracer particles (streamlines mode): advected through the latest frame's (u, v) field. */
+const tracerCv = $('tracers'), tracerCtx = tracerCv.getContext('2d');
+const tracers = { list: [], cleared: true };
+function respawn(p) { p.x = Math.random() * 30; p.y = Math.random() * tracerCv.height; p.px = p.x; p.py = p.y; return p; }
+function stepTracers() {
+  const c = tracerCtx, W = tracerCv.width, H = tracerCv.height;
+  if (state.viz !== 'streamlines' || !lastFrame || lastFrame.channels < 2) {
+    if (!tracers.cleared) { c.clearRect(0, 0, W, H); tracers.cleared = true; }
+    return;
+  }
+  tracers.cleared = false;
+  if (!tracers.list.length) for (let i = 0; i < 380; i++) tracers.list.push(respawn({}));
+  const { w, h, data, vmax } = lastFrame, n = w * h, gain = 3.5 / (vmax || 1);
+  c.globalCompositeOperation = 'destination-out'; c.fillStyle = 'rgba(0,0,0,0.10)'; c.fillRect(0, 0, W, H);
+  c.globalCompositeOperation = 'source-over'; c.strokeStyle = 'rgba(226,240,255,0.85)'; c.lineWidth = 1.2;
+  c.beginPath();
+  for (const p of tracers.list) {
+    const ix = Math.floor(p.x / W * w), iy = Math.floor(p.y / H * h), idx = iy * w + ix;
+    const u = data[idx], v = data[n + idx];
+    if (ix < 0 || ix >= w || iy < 0 || iy >= h || !Number.isFinite(u)) { respawn(p); continue; }
+    p.px = p.x; p.py = p.y;
+    p.x += u * gain; p.y -= v * gain;                  // canvas y points down, v points up
+    if (p.x > W) { respawn(p); continue; }
+    c.moveTo(p.px, p.py); c.lineTo(p.x, p.y);
+  }
+  c.stroke();
+}
+
+/* ==================================================================================
+   9. MOCK SOLVER — analytic stand-in so the UI works without the backend.
+      NOT lattice Boltzmann: parabolic profile in the local opening + mass conservation,
+      a lubrication-style pressure drop, and a decorative wake. Used only for UI testing.
+   ================================================================================== */
+const residualOf = ft => Math.max(0.1 * Math.exp(-ft / 0.15), 1e-9);
+
+const mock = {
+  step: 0, ft: 0,
+  reset() { this.step = 0; this.ft = 0; },
+  tick(n) { this.step += n; this.ft += n * state.umax / CFG.NX; },
+
+  compute() {
+    const { w: MX, h: MY } = CFG.MOCK, g = state.applied, sh = shares(g);
+    const ramp = 1 - Math.exp(-this.ft / 0.12);                 // start-up transient
+    const U = state.umax * ramp, nu = state.nuLat, res = residualOf(this.ft);
+    const wakeRamp = clamp((this.ft - 0.4) / 0.4, 0, 1) * Math.min(1, res / 0.01);
+    const xe = CFG.CLOT_X + g.length / CFG.NX / 2;
+    const ch = state.viz === 'streamlines' ? 2 : 1, n = MX * MY;
+    const data = new Float32Array(n * ch);
+
+    // ---- per-column quantities
+    const cols = [], eps = 1 / MX, cell = CFG.NX / MX;
+    const dpCol = new Float32Array(MX), kin = new Float32Array(MX);
+    let peakU = 0, peakWSS = 0;
+    for (let i = 0; i < MX; i++) {
+      const x = (i + 0.5) / MX;
+      const b = bump(g, x), db = (bump(g, x + eps) - bump(g, x - eps)) / (2 * eps);
+      const lo = sh.bot * b, hi = 1 - sh.top * b, w = hi - lo;  // open part of the channel (fractions of H)
+      const uMaxL = U / w;                                       // local centre-line speed (flux conserved)
+      const wss = nu * 4 * uMaxL / (w * CFG.NY);                 // nu * du/dy at the wall
+      dpCol[i] = 8 * nu * U / (w * w * w * CFG.NY * CFG.NY) * cell; // lubrication: 12 nu Q / w^3
+      kin[i] = 0.5 * Math.pow(2 / 3 * uMaxL, 2);                // Bernoulli term
+      peakU = Math.max(peakU, uMaxL); peakWSS = Math.max(peakWSS, wss);
+      cols.push({ lo, hi, w, dlo: sh.bot * db, dhi: -sh.top * db, uMaxL, wss });
+    }
+    const visc = new Float32Array(MX); let acc = 0;
+    for (let i = MX - 1; i >= 0; i--) { acc += dpCol[i]; visc[i] = acc; }
+    const kinIn = 0.5 * Math.pow(2 / 3 * U, 2);
+    const press = Float32Array.from(visc, (v, i) => v - (kin[i] - kinIn));
+
+    // ---- fill the field
+    let vmin = Infinity, vmax = -Infinity;
+    const wakeOn = g.heightRatio >= 0.25;
+    for (let i = 0; i < MX; i++) {
+      const x = (i + 0.5) / MX, c = cols[i];
+      for (let j = 0; j < MY; j++) {
+        const y = 1 - (j + 0.5) / MY, idx = j * MX + i;
+        if (y < c.lo || y > c.hi) { for (let k = 0; k < ch; k++) data[k * n + idx] = NaN; continue; }
+        const s = (y - c.lo) / c.w;
+        let u = c.uMaxL * 4 * s * (1 - s);
+        let v = u * (CFG.NY / CFG.NX) * (c.dlo + s * (c.dhi - c.dlo));   // follows the contracting streamlines
+        if (wakeOn && x > xe) {                                           // decorative wake
+          const dx = x - xe, pert = wakeRamp * g.heightRatio ** 2 * Math.exp(-dx / 0.18) * Math.sin(2 * Math.PI * (9 * dx - 6 * this.ft));
+          u *= 1 + 0.6 * pert * Math.sin(Math.PI * s);
+          v += U * 0.5 * pert * Math.cos(Math.PI * s);
+        }
+        let val;
+        if (state.viz === 'pressure') val = press[i];
+        else if (state.viz === 'wss') val = Math.min(s, 1 - s) * c.w * MY < 2.5 ? c.wss : NaN;  // wall band only
+        else val = Math.hypot(u, v);
+        if (ch === 2) { data[idx] = u; data[n + idx] = v; } else data[idx] = val;
+        if (Number.isFinite(val)) { vmin = Math.min(vmin, val); vmax = Math.max(vmax, val); }
+      }
+    }
+    if (state.viz !== 'pressure') vmin = 0;
+    if (!Number.isFinite(vmin) || !Number.isFinite(vmax) || vmax <= vmin) { vmin = 0; vmax = 1e-6; }
+    return {
+      frame: { mode: state.viz, w: MX, h: MY, channels: ch, vmin, vmax, data },
+      telem: { step: this.step, ft: this.ft, residual: res, dp: visc[0], peakU, peakWSS, mlups: null },
+    };
+  },
+  // Messages that would normally go to the real solver
+  onMessage(msg) {
+    if (msg.type === 'command' && msg.cmd === 'reset') resetLocal();
+  },
+};
+
+/* ==================================================================================
+   10. BRIDGE  (WebSocket to Python backend, with mock fallback)
+   ================================================================================== */
+function setLive(live) {
+  state.live = live;
+  const b = $('connBadge');
+  b.textContent = live ? 'LIVE · backend connected' : 'MOCK · no backend';
+  b.className = 'rounded-full border px-2.5 py-0.5 font-mono text-[11px] ' + (live
+    ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
+    : 'border-amber-400/40 bg-amber-400/10 text-amber-300');
+}
+
+function currentParams() {
+  return { u_max: state.umax, nu_lat: state.nuLat, tau: state.tau, liquid: state.liquid,
+           steps_per_frame: state.speed, turbo: state.turbo, viz_mode: state.viz };
+}
+function currentGeometry(reset) {
+  const g = state.applied, sh = shares(g);
+  return { symmetry: g.symmetry, height_ratio: g.heightRatio, length_nodes: g.length,
+           eccentricity: g.symmetry === 'sym' ? 0 : g.ecc, x_center_frac: CFG.CLOT_X,
+           top_height_nodes: Math.round(sh.top * CFG.NY), bottom_height_nodes: Math.round(sh.bot * CFG.NY),
+           profile: 'cosine', reset };
+}
+
+const bridge = {
+  ws: null,
+  send(msg) {
+    console.debug('[tx]', msg);
+    if (state.live && this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg));
+    else mock.onMessage(msg);
+  },
+  connect() {
+    if (this.ws) { try { this.ws.close(); } catch (_) {} this.ws = null; }
+    let ws, settled = false;
+    try { ws = new WebSocket(CFG.WS_URL); } catch (e) { return this.fallback('WebSocket unavailable'); }
+    ws.binaryType = 'arraybuffer';
+    this.ws = ws;
+    const timer = setTimeout(() => { if (!settled) { settled = true; try { ws.close(); } catch (_) {} this.fallback('timeout'); } }, CFG.WS_TIMEOUT_MS);
+
+    ws.onopen = () => {
+      settled = true; clearTimeout(timer); setLive(true);
+      log('Connected to backend ' + CFG.WS_URL, 'sys');
+      this.send({ type: 'hello' });                    // sync the solver with what the UI shows
+      this.send({ type: 'params', params: currentParams() });
+      this.send({ type: 'geometry', geometry: currentGeometry(false) });
+    };
+    ws.onmessage = ev => {
+      if (typeof ev.data === 'string') return this.onText(JSON.parse(ev.data));
+      this.onBinary(ev.data);
+    };
+    ws.onclose = () => {
+      clearTimeout(timer);
+      if (state.live) { setLive(false); state.running = false; refreshStatus(); log('Backend connection lost — back to MOCK mode.', 'warn'); }
+      else if (!settled) { settled = true; this.fallback('connection refused'); }
+    };
+    ws.onerror = () => {};                             // onclose handles the fallback
+  },
+  fallback(reason) {
+    setLive(false);
+    log(`Backend not reachable (${reason}). Running built-in MOCK solver for UI testing.`, 'warn');
+  },
+  onText(m) {
+    if (m.type === 'telemetry') ingestTelemetry({ step: m.step, ft: m.ft, residual: m.residual, dp: m.dp,
+                                                   peakU: m.peak_u, peakWSS: m.peak_wss, mlups: m.mlups, phase: m.phase });
+    else if (m.type === 'status') { state.running = !!m.running; if (m.step != null) state.step = m.step; refreshStatus(); }
+    else if (m.type === 'log') log(m.msg, m.level || 'info');
+  },
+  onBinary(buf) {                                      // header: u32 w, u32 h, u32 ch, f32 vmin, f32 vmax
+    const dv = new DataView(buf);
+    const w = dv.getUint32(0, true), h = dv.getUint32(4, true), ch = dv.getUint32(8, true);
+    const vmin = dv.getFloat32(12, true), vmax = dv.getFloat32(16, true);
+    renderFrame({ mode: state.viz, w, h, channels: ch, vmin, vmax, data: new Float32Array(buf, 20, w * h * ch) });
+  },
+};
+
+let paramTimer = null;
+function sendParams() {
+  clearTimeout(paramTimer);
+  paramTimer = setTimeout(() => bridge.send({ type: 'params', params: currentParams() }), CFG.PARAM_DEBOUNCE_MS);
+}
+
+/* ==================================================================================
+   11. ACTIONS
+   ================================================================================== */
+function resetLocal() {
+  mock.reset();
+  state.running = false; state.step = 0; state.ft = 0; state.residual = 1;
+  hist.dp.length = 0; hist.res.length = 0; lastHistStep = -1; lastLogBucket = 0;
+  enterPhase(-1);
+  refreshStatus();
+}
+function doReset() {
+  resetLocal();
+  bridge.send({ type: 'command', cmd: 'reset' });
+  log('Reset: fields re-initialised, step = 0.', 'cmd');
+  if (!state.live) { const { frame, telem } = mock.compute(); renderFrame(frame); ingestTelemetry(telem); enterPhase(-1); log('Press Start to begin; PHASE 0 begins on the first step.', 'sys'); }
+}
+function toggleRun() {
+  state.running = !state.running;
+  bridge.send({ type: 'command', cmd: state.running ? 'start' : 'pause' });
+  log(state.running ? 'Run started.' : 'Run paused.', 'cmd');
+  refreshStatus();
+}
+function applyGeometry() {
+  state.applied = { ...state.geom };
+  const reset = $('chkReset').checked, sh = shares(state.applied);
+  bridge.send({ type: 'geometry', geometry: currentGeometry(reset) });
+  log(`Geometry applied: ${state.applied.symmetry === 'sym' ? 'symmetric' : 'asymmetric'} clot, ` +
+      `H ratio ${Math.round(state.applied.heightRatio * 100)} %, L = ${state.applied.length}, ` +
+      `top ${Math.round(sh.top * CFG.NY)} / bottom ${Math.round(sh.bot * CFG.NY)} nodes.`, 'cmd');
+  if (reset) { const was = state.running; resetLocal(); state.running = was; refreshStatus(); }
+  else if (!state.live) mock.ft = Math.min(mock.ft, 0.25);       // mock: re-develop the flow
+  updateGeomUI();
+}
+function revertGeometry() { state.geom = { ...state.applied }; syncGeomInputs(); updateGeomUI(); }
+function syncGeomInputs() {
+  const g = state.geom;
+  document.querySelector(`input[name=sym][value=${g.symmetry}]`).checked = true;
+  $('heightRatio').value = Math.round(g.heightRatio * 100);
+  $('clotLen').value = g.length; $('ecc').value = Math.round(g.ecc * 100);
+}
+function setViz(v) {
+  state.viz = v; drawLegend(); sendParams();
+  tracers.list.length = 0; lastFrame = null;
+  log('Visualization: ' + MODES[v].label, 'sys');
+}
+
+/* ==================================================================================
+   12. EVENT WIRING
+   ================================================================================== */
+$('btnStart').onclick = toggleRun;
+$('btnReset').onclick = doReset;
+$('btnApply').onclick = applyGeometry;
+$('btnRevert').onclick = revertGeometry;
+$('btnClearLog').onclick = () => { $('logBox').textContent = ''; };
+$('btnReconnect').onclick = () => { log('Retrying backend connection…', 'sys'); bridge.connect(); };
+
+$('speed').oninput = e => { state.speed = +e.target.value; $('speedVal').textContent = state.speed; sendParams(); };
+$('chkTurbo').onchange = e => { state.turbo = e.target.checked; sendParams(); log(state.turbo ? 'Turbo on (rendering skipped).' : 'Turbo off.', 'sys'); };
+
+$('liquid').onchange = e => {
+  state.liquid = e.target.value;
+  $('nuCustomWrap').classList.toggle('hidden', state.liquid !== 'custom');
+  updateFluid(); sendParams();
+  log(`Liquid: ${LIQUIDS[state.liquid].label} → ν=${state.nuLat.toFixed(4)}, τ=${state.tau.toFixed(3)}`, 'sys');
+};
+$('nuCustom').oninput = e => {
+  const v = parseFloat(e.target.value);
+  if (Number.isFinite(v)) { state.nuCustom = clamp(v, 0.005, 0.5); updateFluid(); sendParams(); }
+};
+
+function setUmax(v) {                                  // slider and number box stay in sync
+  if (!Number.isFinite(v)) return;
+  state.umax = clamp(v, 0.01, 0.2);
+  $('umax').value = state.umax; $('umaxNum').value = state.umax;
+  updateFluid(); sendParams();
+}
+$('umax').oninput = e => setUmax(parseFloat(e.target.value));
+$('umaxNum').onchange = e => setUmax(parseFloat(e.target.value));
+
+document.querySelectorAll('input[name=sym]').forEach(r => r.onchange = e => { state.geom.symmetry = e.target.value; updateGeomUI(); });
+$('heightRatio').oninput = e => { state.geom.heightRatio = +e.target.value / 100; updateGeomUI(); };
+$('clotLen').oninput     = e => { state.geom.length = +e.target.value; updateGeomUI(); };
+$('ecc').oninput         = e => { state.geom.ecc = +e.target.value / 100; updateGeomUI(); };
+document.querySelectorAll('input[name=viz]').forEach(r => r.onchange = e => setViz(e.target.value));
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !/^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(e.target.tagName)) { e.preventDefault(); toggleRun(); }
+});
+window.addEventListener('resize', () => { spark($('sparkDp'), hist.dp, '#22d3ee'); spark($('sparkRes'), hist.res, '#f472b6'); });
+
+/* ==================================================================================
+   13. MAIN LOOP  (mock mode only; in live mode frames/telemetry arrive via WebSocket)
+   ================================================================================== */
+let frameNo = 0;
+function loop() {
+  frameNo++;
+  if (!state.live) {
+    if (state.running) mock.tick(state.speed * (state.turbo ? 10 : 1));
+    const render = !(state.turbo && state.running) || frameNo % 5 === 0;
+    if (render) {
+      const { frame, telem } = mock.compute();
+      renderFrame(frame); ingestTelemetry(telem);
+    }
+  }
+  stepTracers();
+  requestAnimationFrame(loop);
+}
+
+/* ==================================================================================
+   14. START-UP
+   ================================================================================== */
+updateFluid(); updateGeomUI(); drawLegend(); refreshStatus();
+log('LBM control panel ready. D2Q9 · TRT · 1024×256 · lattice units.', 'sys');
+log('Tip: tune the clot in section 3, then "Apply to grid".', 'sys');
+bridge.connect();
+requestAnimationFrame(loop);
+
+window.LBMPanel = { state, bridge, CFG };              // handy for debugging in the dev-tools console
+})();
+</script>
+</body>
+</html>

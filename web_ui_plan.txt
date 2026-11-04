@@ -1,0 +1,100 @@
+LBM WEB UI - PLAN (v1)
+======================
+
+GOAL
+  Turn the LBM arterial-flow solver into a UI-friendly app for non-experts
+  (students, teachers, science-fair judges). Not clinical. The author also uses it
+  for research, so raw data must be downloadable and the CLI path stays intact.
+
+HARD CONSTRAINTS
+  - Solver engine (src/*.py) is NOT edited in v1. All new code lives in web/.
+  - CPU only in v1 (header says "CPU"); the processor is one setting so a GPU
+    switch is a small change in v2.
+  - Streaming must cost <= 2% of headless MLUPS (automated benchmark).
+  - ti.GUI stays available as an opt-in mode (--gui); the web is the default.
+  - Runs fully offline (no CDN) - packaging/install scripts are handled separately.
+
+ARCHITECTURE
+  Browser (ES modules, one adapter file talks to the server)
+     <-- WebSocket (JSON + binary frames) -->
+  web/server.py   (small server, websockets library, serves web/static)
+     |  spawns
+  web/worker.py   (one fresh process per run)
+     - sets values on the Fields module BEFORE importing the kernels
+       (tau_s, ux_target, ...), because Taichi bakes Python globals in at
+       compile time. Engine files are untouched.
+     - writes the clot shape straight into the `mask` field from numpy
+     - own run loop (trt_and_stream, zou_he_inlet, zero_gradient_outlet, swap,
+       macro_update, Convergence_Checker), mirroring Simulator.py
+     - every ~33 ms a small extraction step downsamples velocity into a staging
+       buffer; only the latest frame is sent (older frames are dropped, never queued)
+  "Apply" = new worker = fresh run from rest. Only pause/resume, steps per frame,
+  turbo and view mode change live.
+
+SCREENS
+  1 Home      explanation, live preview, Start
+  2 Setup     stenosis severity, symmetric/one-sided, clot location, run length
+              (Quick / Medium / Long / until stopped), collapsed Expert panel
+  3 Running   animated flow, progress, system-warning lamp, Pause / Stop
+  4 Summary   opens automatically when a run ends: results, final flow picture,
+              "Download data" button
+  5 History   last 3 runs (oldest deleted when a 4th finishes), Compare any two
+  6 Guide     short lessons on reading colours and numbers
+
+LAYMAN CONTROLS
+  Stenosis severity (% of vessel blocked at the narrowest point), symmetric or
+  one-sided (bottom wall, as in the engine), clot location along the vessel.
+  Clot length fixed at the engine value (450).
+  Fluid: Blood only, tau_s = 0.884 (the validated setting).
+
+EXPERT PANEL (collapsed section, no separate mode)
+  Custom tau_s and inlet speed, each limited to a safe range found by testing, with a
+  warning when the pair gets risky. Clot length and lopsidedness. Exact step count.
+  Raw numbers. On failure: the engine's full report (error code, location, density,
+  speeds, 9 populations).
+
+RUN LENGTH (chosen before the run)
+  - until the flow settles (engine check: rel_change < 1e-5 every 250 steps)
+  - fixed amount: Quick / Medium / Long (shows flow-throughs + time); exact steps in Expert
+  - until the user stops it
+  A step cap guards against a run that never settles.
+
+RESULTS (Summary page)
+  - Narrowing: "X% blocked at the tightest point" (from the setting)
+  - Speed-up: peak speed / inlet speed
+  - Extra effort: pressure drop vs a clear vessel, from the straight-channel formula,
+    labelled "approximate"; raw numbers in Expert
+  - Download data: settings file (so a run is reproducible), velocity-profile CSV,
+    final fields (.npy); files named with date + settings
+  Wall shear stress, pressure maps, streamlines: v2.
+
+SAFETY
+  - During a run: warnings only (memory, CPU load, thermal throttling; temperature
+    only where the machine reports it). Never stops a run by itself.
+  - After a run: smart cooldown = minimum wait (half the run length, 30 s to 5 min)
+    then until the machine reports it has cooled. Expert cannot skip it.
+  - Solver blow-up: plain-language message + one-click move to nearest safe settings.
+    Failed runs are not saved to History and skip the cooldown unless the machine is hot.
+
+LOOK
+  A mix leaning towards HybriDock-Pep: calm layout, big type, one accent, pill buttons,
+  light + dark. The flow picture and data cards keep a more technical feel.
+
+TESTS (one command)
+  1 Speed check: headless vs streamed MLUPS, fail above 2% loss
+  2 Contract check: messages match what the UI expects (Demo adapter stands in)
+  3 Safe-range check: run at the edges of tau_s, speed, severity; none may blow up
+  Browser (Playwright) suite: later.
+
+BUILD ORDER (highest risk first)
+  1 worker.py + benchmark + safe-range sweep
+  2 server.py (WebSocket)
+  3 adapter + Demo adapter
+  4 screens: Setup, Running, Summary
+  5 History + Compare
+  6 Guide, warnings/cooldown, error handling
+  7 polish
+
+PARKED / LATER
+  Online Demo site; packaging + install scripts; GPU; v2 engine refactor (Simulation
+  class); WSS / pressure / streamlines; Playwright suite.

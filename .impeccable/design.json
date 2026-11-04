@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-27T12:00:00Z",
+  "title": "Design System: Vessel Flow Lab",
+  "extensions": {
+    "colorMeta": {
+      "accent-blue": { "role": "primary", "displayName": "Signal Blue", "canonical": "#0071e3", "tonalRamp": ["#001f40", "#00438a", "#0058b3", "#0071e3", "#3d94f0", "#7ab5f5", "#b5d6fa", "#e6f1fd"] },
+      "link-blue": { "role": "primary", "displayName": "Link Blue", "canonical": "#0066cc", "tonalRamp": ["#001a33", "#003d7a", "#0052a3", "#0066cc", "#3385d6", "#70a8e4", "#b0cdf0", "#e5eefa"] },
+      "page": { "role": "neutral", "displayName": "Page White", "canonical": "#ffffff", "tonalRamp": ["#000000", "#1d1d1f", "#424245", "#6e6e73", "#a1a1a6", "#d2d2d7", "#f5f5f7", "#ffffff"] },
+      "ink": { "role": "neutral", "displayName": "Label Ink", "canonical": "#1d1d1f", "tonalRamp": ["#000000", "#1d1d1f", "#424245", "#6e6e73", "#98989f", "#c7c7cc", "#e5e5ea", "#f5f5f7"] },
+      "group": { "role": "neutral", "displayName": "Group Grey", "canonical": "#f5f5f7", "tonalRamp": ["#000000", "#1c1c1e", "#2c2c2e", "#6e6e73", "#d2d2d7", "#ebebf0", "#f5f5f7", "#ffffff"] },
+      "stage-wall": { "role": "tertiary", "displayName": "Vessel Wall Slate", "canonical": "#8593a8", "tonalRamp": ["#1b2433", "#3a4658", "#586579", "#8593a8", "#a4b2c7", "#c3cddb", "#dde3ec", "#f0f3f7"] },
+      "flow-ramp": { "role": "secondary", "displayName": "Flow Ramp (shader, not a token)", "canonical": "#5aa7ff", "tonalRamp": ["#e8eef7", "#bcd6fb", "#5aa7ff", "#5e5ce6", "#ff6482", "#ff9f0a", "#173f78", "#1b2433"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Home hero headline." },
+      "headline": { "displayName": "Headline", "purpose": "Screen titles." },
+      "title": { "displayName": "Title", "purpose": "Section and tile titles." },
+      "body": { "displayName": "Body", "purpose": "Running text and rows, 17px." },
+      "label": { "displayName": "Label", "purpose": "Chips, legend, tab labels, technical line." },
+      "figure": { "displayName": "Figure", "purpose": "Large tabular result and setup numbers." }
+    },
+    "shadows": [
+      { "name": "floating", "value": "0 0 0 .5px rgba(0,0,0,.06), 0 12px 40px rgba(0,0,0,.14)", "purpose": "Popovers, dialogs, glass pills, toasts." },
+      { "name": "floating-dark", "value": "0 0 0 .5px rgba(255,255,255,.1), 0 16px 48px rgba(0,0,0,.7)", "purpose": "Dark-appearance floating layer." },
+      { "name": "hero-float", "value": "0 30px 80px -24px rgba(0,0,0,.28), 0 8px 24px rgba(0,0,0,.08)", "purpose": "Home illustration window only." }
+    ],
+    "motion": [
+      { "name": "ease", "value": "cubic-bezier(.25, .1, .25, 1)", "purpose": "Standard UI state changes, 150ms and 260ms." },
+      { "name": "ease-sheet", "value": "cubic-bezier(.32, .72, 0, 1)", "purpose": "iOS sheet curve for dialogs, panels, hero entrance, switch thumbs." },
+      { "name": "ease-out", "value": "cubic-bezier(.22, 1, .36, 1)", "purpose": "Exponential ease-out with no overshoot for pins, pills, thumbs, swatches." }
+    ],
+    "breakpoints": [
+      { "name": "phone", "value": "600px" },
+      { "name": "tablet", "value": "900px" },
+      { "name": "content-max", "value": "1180px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Pill, accent fill, one per view for the main action.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Start simulation</button>",
+      "css": ".ds-btn { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 22px; font:500 15px/1 -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif; letter-spacing:-.01em; border:0; border-radius:980px; cursor:pointer; transition:background 150ms cubic-bezier(.25,.1,.25,1), transform 150ms cubic-bezier(.25,.1,.25,1); } .ds-btn:active { transform:scale(.97); } .ds-btn:focus-visible { outline:3px solid rgba(0,113,227,.42); outline-offset:2px; } .ds-btn-primary { background:#0071e3; color:#fff; } .ds-btn-primary:hover { filter:brightness(1.1); }"
+    },
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "Control-fill grey pill for secondary actions.",
+      "html": "<button class=\"ds-btn ds-btn-default\">Back</button>",
+      "css": ".ds-btn-default { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 22px; font:500 15px/1 -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif; color:#1d1d1f; background:rgba(118,118,128,.12); border:0; border-radius:980px; cursor:pointer; transition:background 150ms cubic-bezier(.25,.1,.25,1); } .ds-btn-default:hover { background:rgba(118,118,128,.2); } .ds-btn-default:focus-visible { outline:3px solid rgba(0,113,227,.42); outline-offset:2px; }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Grey control-fill input that lifts to page colour with an accent ring on focus.",
+      "html": "<input class=\"ds-field\" value=\"40\" aria-label=\"Severity\">",
+      "css": ".ds-field { width:100%; min-height:48px; padding:12px 16px; font:400 17px/1.3 -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif; color:#1d1d1f; background:rgba(118,118,128,.12); border:1px solid transparent; border-radius:12px; transition:border-color 150ms, box-shadow 150ms, background 150ms; } .ds-field:focus { outline:none; border-color:#0071e3; background:#fff; box-shadow:0 0 0 4px rgba(0,113,227,.1); }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "chip",
+      "refersTo": "button-default",
+      "description": "Grey track with a white thumb segment, used for view and appearance choices.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button role=\"radio\" aria-checked=\"true\">Close-up</button><button role=\"radio\" aria-checked=\"false\">Whole vessel</button></div>",
+      "css": ".ds-seg { display:inline-flex; padding:2px; background:rgba(118,118,128,.12); border-radius:9px; } .ds-seg button { min-height:28px; padding:0 14px; font:500 13px/1 -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif; color:#1d1d1f; background:transparent; border:0; border-radius:7px; cursor:pointer; } .ds-seg button[aria-checked='true'] { background:#fff; box-shadow:0 0 0 .5px rgba(0,0,0,.04), 0 3px 8px rgba(0,0,0,.12), 0 1px 1px rgba(0,0,0,.08); } .ds-seg button:focus-visible { outline:3px solid rgba(0,113,227,.42); outline-offset:2px; }"
+    },
+    {
+      "name": "Grouped List",
+      "kind": "card",
+      "refersTo": "group",
+      "description": "Grey block with hairline-separated 52px rows: name and technical line left, tabular value right.",
+      "html": "<div class=\"ds-group\"><div class=\"ds-row\"><div><div class=\"ds-name\">Severity</div><span class=\"ds-tech\">Share of width blocked</span></div><span class=\"ds-val\">40%</span></div><div class=\"ds-row\"><div><div class=\"ds-name\">Heart rate</div><span class=\"ds-tech\">Beats per minute</span></div><span class=\"ds-val\">72</span></div></div>",
+      "css": ".ds-group { background:#f5f5f7; border-radius:12px; overflow:hidden; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif; color:#1d1d1f; } .ds-row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; min-height:52px; } .ds-row + .ds-row { border-top:1px solid rgba(0,0,0,.12); } .ds-name { font-weight:500; font-size:16px; } .ds-tech { display:block; font-size:13px; color:#6e6e73; line-height:1.35; } .ds-val { font-variant-numeric:tabular-nums; color:#6e6e73; }"
+    },
+    {
+      "name": "Navigation Bar",
+      "kind": "nav",
+      "refersTo": "button-ghost",
+      "description": "48px bar with brand, centred links in tertiary ink and the current page in ink weight 500.",
+      "html": "<nav class=\"ds-nav\"><span class=\"ds-brand\">Vessel Flow Lab</span><span class=\"ds-links\"><a aria-current=\"page\" href=\"#\">Home</a><a href=\"#\">Setup</a><a href=\"#\">History</a></span></nav>",
+      "css": ".ds-nav { display:flex; align-items:center; justify-content:space-between; height:48px; padding:0 24px; background:#fff; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif; } .ds-brand { font:600 17px/1 inherit; letter-spacing:-.02em; color:#1d1d1f; } .ds-links { display:flex; gap:20px; } .ds-links a { font-size:14px; letter-spacing:-.01em; color:#6e6e73; text-decoration:none; padding:8px 10px; border-radius:8px; } .ds-links a:hover { color:#1d1d1f; } .ds-links a[aria-current='page'] { color:#1d1d1f; font-weight:500; } .ds-links a:focus-visible { outline:3px solid rgba(0,113,227,.42); outline-offset:2px; }"
+    },
+    {
+      "name": "Callout (glass pill with pin)",
+      "kind": "custom",
+      "refersTo": "flow-window",
+      "description": "Glass pill with a large tabular figure, tied to a white pin ringed in the accent. Full label on Home and Setup; figure only (label on hover or focus) on Running and Summary.",
+      "html": "<div class=\"ds-stage\"><div class=\"ds-callout\"><span class=\"ds-pin\"></span><span class=\"ds-pill\" tabindex=\"0\"><b>0.42 m/s</b><span>Peak speed</span></span></div></div>",
+      "css": ".ds-stage { position:relative; width:320px; height:120px; border-radius:28px; background:linear-gradient(90deg,#e8eef7,#bcd6fb,#5aa7ff); overflow:hidden; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif; } .ds-callout { position:absolute; left:80px; top:60px; width:0; height:0; } .ds-pin { position:absolute; left:-6px; top:-6px; width:12px; height:12px; border-radius:50%; background:#fff; box-shadow:0 0 0 2px #0071e3, 0 2px 8px rgba(0,0,0,.3); } .ds-pill { position:absolute; left:22px; top:0; transform:translateY(-50%); padding:7px 14px 8px; border-radius:18px; white-space:nowrap; background:rgba(255,255,255,.78); -webkit-backdrop-filter:saturate(180%) blur(18px); backdrop-filter:saturate(180%) blur(18px); box-shadow:0 0 0 .5px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.18); color:#1d1d1f; } .ds-pill b { display:block; font-size:22px; line-height:1.1; font-weight:650; letter-spacing:-.03em; font-variant-numeric:tabular-nums; } .ds-pill span { display:block; font-size:12px; color:#6e6e73; } .ds-pill:focus-visible { outline:3px solid rgba(0,113,227,.42); outline-offset:2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Product Shot",
+    "overview": "The app follows the HybriDock-Pep web app's design language: white and true-black pages, system-grey grouped surfaces, one blue accent, the platform's own font set run large and tight, hairlines instead of boxes, and pill buttons. The flow window is the product shot. It is the one saturated, moving thing on any screen, and everything else is quiet enough to let it read.\n\nDensity is calm and generous: a 1180px column, large display type on Home, grouped lists and big tabular figures elsewhere. Depth is mostly tonal. The flow carries the only chromatic range beyond the accent. Plain language is part of the look: figures are large, labels are short, and a small grey technical line sits under the plain one.\n\nThe direction was pinned by the user rather than rolled: follow HybriDock-Pep, with the chart restyled to match. The previous nautical-chart look (web_v2) is superseded.",
+    "keyCharacteristics": [
+      "Two appearances, Light, Dark and Auto; data-theme is always set explicitly on the root.",
+      "One accent, swappable at runtime from five choices; everything accent-coloured reads --accent.",
+      "Grouped grey surfaces and hairlines, not bordered cards.",
+      "Pill buttons, 44px touch height, press scales to 0.97.",
+      "The flow window is the only place with a multi-hue ramp, and it is a GPU canvas.",
+      "Large tabular figures for results; units and plain meaning sit beside them."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Blue (or the chosen accent) is the only chromatic UI colour; the flow window is the only multi-hue surface. A screen with a coloured banner, a coloured card and a coloured button has lost the hierarchy.", "section": "colors" },
+      { "name": "The Three Copies Rule", "body": "The flow ramp exists in the shader, the legend gradient and the Guide swatch. They are not tokens and do not inherit. Edit all three or none.", "section": "colors" },
+      { "name": "The Plain First Rule", "body": "Plain wording leads, the technical term follows in small grey beneath it. Never lead with the symbol.", "section": "typography" },
+      { "name": "The Tabular Rule", "body": "Every changing or compared number uses tabular figures so values do not jitter.", "section": "typography" },
+      { "name": "The No Stretch Rule", "body": "The flow window's aspect follows what it shows (4:1 whole vessel, narrower for a close-up). Never letterbox or scale a frame to fit a slot.", "section": "layout" },
+      { "name": "The Flat Until Floating Rule", "body": "Surfaces at rest have no shadow. Only elements that hover above content get one, and the flow window itself is flat except on Home.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the accent as the only UI colour and let the flow window carry the colour range.",
+      "Do group with the grey tone and hairlines before reaching for a border or a shadow.",
+      "Do give every button the pill shape and a 44px minimum touch height.",
+      "Do put window controls and labels in the bar below the window, and show figures through callouts.",
+      "Do set data-theme explicitly and design both appearances; read flow colours from the shader stops, not from CSS tokens.",
+      "Do lead with the plain name and put the technical term in small grey under it.",
+      "Do end entrance and pin motion on --ease-out or --ease-sheet."
+    ],
+    "donts": [
+      "Don't stretch the window to fill a slot; change the view and the aspect together.",
+      "Don't place labels, controls or banners on top of the flow beyond callouts and the empty-state veil.",
+      "Don't introduce a second accent, gradient text or coloured card fills.",
+      "Don't add overshoot or bounce easing.",
+      "Don't treat the Home illustration as data; it stays labelled \"Illustration only\".",
+      "Don't add flow colours in only one of the three places the ramp lives."
+    ]
+  }
+}

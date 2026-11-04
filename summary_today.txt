@@ -1,0 +1,77 @@
+SUMMARY OF TODAY'S WORK (Oct 26-28, 2026 session)
+=================================================
+
+GOAL
+  Turn the LBM arterial-flow solver into a UI-friendly app for non-experts (students, teachers,
+  science-fair judges). Educational, not clinical. The author also uses it for research.
+
+1. READING AND PLANNING
+  - Light read of every file in src/ and a written review: code_review_notes.txt (10 observations:
+    double ti.init, debug=True on CPU, a dead error branch, an off-by-one in the plaque mask, etc).
+  - Read lbm_dashboard.html (the user's prototype) and the hybridock-pep web folder (the design/architecture
+    the user likes).
+  - Ran a long one-question-at-a-time design interview and recorded the decisions in web_ui_plan.txt:
+    local app (not hosted), engine untouched in v1, WebSocket streaming within a 2% MLUPS budget, ti.GUI kept
+    as an opt-in (--gui), Blood only (tau_s 0.884) plus an Expert panel, layman controls (severity, shape,
+    location), run length (settle / Quick / Medium / Long / until stopped), summary page, last 3 runs + Compare,
+    cooldown + warnings only, plain-language failures with an Expert report. CPU only in v1.
+
+2. BACKEND (web/, new code; src/ was NOT edited)
+  - worker.py: one run per fresh process; sets Fields globals before the kernels load, writes the clot into
+    the mask, runs the engine's step order, streams frames. Two small new Taichi kernels read the engine's
+    fields (frame downsample, pressure stations).
+  - server.py (WebSocket + static + zip download, --static option), physics.py (raised-cosine clot, same as the
+    engine's plaque; ranges; metrics), system.py (memory/CPU/thermal warnings, smart cooldown), protocol.py.
+  - Measured facts: streaming overhead about 1.4% (budget 2%); solver about 190-230 MLUPS.
+  - Safe-range sweep: failures follow throat speed (inlet speed / open fraction): stable at 0.25, failed at 0.30.
+    Limits set: tau 0.70-1.50, speed 0.01-0.10, severity <= 75%, throat speed <= 0.22. A tau 0.6 corner failed,
+    so tau was raised to 0.70 and the corners re-verified.
+  - Metric finding: the straight-channel formula for the clear-vessel pressure drop is about 1.9x too low on
+    this grid (developing flow), so a MEASURED clear-vessel baseline is used (stored for defaults; other settings
+    are measured automatically after the run and cached).
+  - Bug fixed late: run IDs could collide (same second / leftover folder) and the failure was silent. IDs are now
+    unique and start-up errors reach the page as a message.
+  - Tests in web/tests/: physics, server contract, baseline, stream benchmark, safe-range sweep.
+
+3. FRONT ENDS (three versions, all on the same protocol)
+  - web/static: first UI (clean light heatmap, dashboard-style). User said it was the better of the first two.
+  - web_v2: nautical-chart redesign (Impeccable + frontend-design; PRODUCT.md, direction round, finish review,
+    DESIGN.md). User feedback: less friendly, choppy, not professional. Kept for reference (web_v2/DESIGN.md).
+  - web_v3 (CURRENT): HybriDock-Pep design language with the flow restyled to match. Built with Impeccable:
+      * Setup 3-step wizard; Running with phase track; Summary (full-width flow window, three big results);
+        History + swipe Compare; Guide as lesson sheets; settings popover (appearance, accent colour); machine
+        popover; phone tab bar; true white / true black themes.
+      * Smoothness: solver frames are blended on the GPU between previous and next frame (60 fps); Home hero is
+        computed analytically on the GPU; clot wall drawn from exact cosine geometry in the shader.
+      * Measured in a real run (headless Chromium): 60 fps, 0 frames over 33 ms; solver 189 MLUPS with this UI
+        vs 104 with the chart UI (headless software GL exaggerates the gap).
+      * Feedback applied: Summary window was too small and text boxes covered the flow -> full-width window,
+        small figure-only pins (label on hover), controls in a bar below the window, phones start in a taller
+        close-up with one pin.
+  - Finish process for v3: independent reviewer (2 rounds), detector (only the deliberate Inter note remains),
+    documenter wrote DESIGN.md and .impeccable/design.json for web_v3.
+
+4. VERIFIED WITH THE REAL SOLVER IN A BROWSER
+  Setup wizard, a Quick run, Running, Summary, History, swipe Compare, cooldown gate, failure screen with the
+  Expert report ("Use gentler settings"), no console errors.
+
+5. FILES ADDED OR CHANGED (nothing committed)
+  New: web/, web_v2/, web_v3/, PRODUCT.md, DESIGN.md, .impeccable/, web_ui_plan.txt, code_review_notes.txt,
+       summary_today.txt, CLAUDE.md. .gitignore got a web/runs/ line. A git-ignored .venv was created.
+  Untouched by me: everything in src/ (the git-modified Results/Test_2.csv, src/Initialize_Object.py and
+  src/Simulator.py were already modified before the session). lbm_dashboard.html is untracked and unchanged.
+
+6. OPEN ITEMS / KNOWN LIMITS
+  - Three late fixes in web_v3 (phone Running crop, desktop Running bar alignment, an empty-container gap) were
+    checked by me in a screenshot/DOM but not re-scored by the reviewer.
+  - Tested only in headless Chromium. The failure screen was tested in v3 with the loosened-limits server.
+  - Cooldown against a genuinely hot machine is unit-tested only. The Compare handle's grip is text glyphs;
+    callout pins have an endless pulse ring (documenter flagged both, left as is).
+  - Parked by the user: packaging/install scripts, the online Demo site, GPU, a v2 refactor of src/ into a
+    Simulation class, wall shear stress / pressure maps / streamlines, a Playwright suite in the repo.
+  - Ideas not done: remove the old pinned `spread` variable in Fields.py if unused (it appears unused).
+
+7. HOW TO RUN
+  .venv/bin/python -m web --static web_v3     (opens http://127.0.0.1:8765; Ctrl+C to stop)
+  A server was left running on port 8765 at the end of the session (serving web_v3).
+  See CLAUDE.md for tests, safe ranges and gotchas.

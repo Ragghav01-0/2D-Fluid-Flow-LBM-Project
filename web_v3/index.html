@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vessel Flow Lab</title>
+<meta name="description" content="See how a blocked blood vessel changes the way blood flows, with a real flow simulation that runs on your own computer. An educational model, not for medical use.">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/app.css"><link rel="stylesheet" href="css/components.css"><link rel="stylesheet" href="css/screens.css">
+<script>try { const t = JSON.parse(localStorage.getItem('vfl-theme-pref') || '"auto"'); const sys = matchMedia('(prefers-color-scheme: dark)').matches; document.documentElement.dataset.theme = t === 'light' || t === 'dark' ? t : (sys ? 'dark' : 'light'); const a = JSON.parse(localStorage.getItem('vfl-accent') || 'null'); if (a) { const d = document.documentElement.dataset.theme === 'dark'; document.documentElement.style.setProperty('--accent', d ? a.dark : a.light); document.documentElement.style.setProperty('--link', d ? a.dark : a.light); } } catch (_) {}</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="topbar" id="topbar"></header>
+<main id="main" tabindex="-1"><div id="app"></div></main>
+<nav class="tabbar" id="tabbar" aria-label="Main"></nav>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+<script type="module" src="js/main.mjs"></script>
+</body>
+</html>

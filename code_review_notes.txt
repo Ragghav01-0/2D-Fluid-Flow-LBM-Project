@@ -1,0 +1,34 @@
+Code review notes - src/ (light read, nothing was run)
+
+1. Double ti.init. Fields.py:2 runs ti.init(arch=ti.cpu) and Simulator.py:6 runs
+   ti.init(..., debug=True). The second call resets the runtime and can invalidate
+   fields already created, depending on import order. Keep a single init.
+
+2. debug=True on the CPU slows the run a lot and clashes with the "GPU acceleration"
+   goal.
+
+3. Possible bug in TRT_and_Stream.py. If c_rho <= 1e-4 the divide is skipped, so ux
+   and uy stay as unnormalised momentum.
+
+4. Dead error branch. Error codes 3 (density) and 1 (Mach) set is_unstable, but
+   Simulator.py only stops on codes 2 and 4. The nanreport variable is unused.
+
+5. Inlet. Zou_he_inlet.py has the parabolic profile commented out, and
+   "ux *= parabolic" would compound across loop iterations if re-enabled.
+
+6. Outlet / mask. Initialize_Object.py fills the plaque over (0, nx-1) and (1, ny-2),
+   which skips the last column and row (ny-2). Looks like an off-by-one.
+
+7. Simulator.py uses ti.static(range(ny)) in plain Python (meaningless there) and
+   hardcodes u[1000, i], which breaks if nx changes.
+
+8. Graph.py imports ux_target from Zou_he_inlet and runs the whole Fields module, so
+   Taichi starts up just to plot. It also shadows the builtin "max".
+
+9. Cosmetic.
+   - CLI_header.py has an unclosed bracket in " [Physical Unit Conversions".
+   - The header labels lt_rho as "Kinematic Viscosity (rho)"; it is nu.
+   - Unused globals: uy in Fields.py (shadowed), U0, A, omega, w0/w_straight/w_diag.
+   - Files mix 2-space and 4-space indentation.
+
+10. Git. Results/Test_2.csv is tracked and modified every run. Consider .gitignore.
