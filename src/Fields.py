@@ -1,9 +1,9 @@
 import taichi as ti
-ti.init(arch=ti.cpu)
+ti.init(arch=ti.cpu, debug=True)
 
 # Lattice dimensions
-nx = 1024
-ny = 256 #191
+nx = 256
+ny = 64 #191
 
 # discrete velocities(f), density(rho) and velocity(u)
 f = ti.Vector.field(9, dtype=ti.f32, shape=(nx, ny))
@@ -81,7 +81,7 @@ max_diff = ti.field(dtype=ti.f32, shape=())
 max_vel = ti.field(dtype=ti.f32, shape=())
 
 # Simulation metric calculation
-interval = 250
+interval = 150
 nodes = nx * ny
 avg_mlups = 0
 log_count = 0

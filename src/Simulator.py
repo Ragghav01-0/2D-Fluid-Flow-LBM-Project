@@ -27,11 +27,11 @@ initial_fluid()
 
 # initialize CLI header
 CLI_header()
-gui = ti.GUI("LBM Simulation", res=(nx, ny))
+# gui = ti.GUI("LBM Simulation", res=(nx, ny))
 
 sysreport = False
 
-while gui.running:
+for i in range(500):
 
     # EDS loop
     if is_unstable[None] == 1 and not sysreport:
@@ -74,10 +74,10 @@ while gui.running:
     macro_update()
 
     # GUI pixel update loop
-    if step[None] % 5 == 0:
-       updating_pixels()
-       gui.set_image(pixels)
-       gui.show()
+    # if step[None] % 5 == 0:
+    #    updating_pixels()
+    #    gui.set_image(pixels)
+    #    gui.show()
 
     if step[None] > 0 and step[None] % interval == 0:
         Convergence_Checker()
@@ -88,7 +88,7 @@ while gui.running:
 
         MLUPS = (nodes * interval) / (elapsed * 1e6)
         avg_mlups += MLUPS
-        print(f"Step: {step[None]} | elapsed: {run_time:.2f} | Simulation Speed/MLUPS: {MLUPS:.2f} | Delta: {rel_change:.7f}")
+        print(f"Step: {step[None]} | elapsed: {run_time:.2f} | Simulation Speed/MLUPS: {MLUPS:.2f} | Delta: {rel_change:.7f} | ")
         prev_time = timePy.perf_counter()
         log_count += 1
 
@@ -98,6 +98,9 @@ while gui.running:
             break
 
     step[None] += 1
+
+
+
 
 total_run_time = timePy.perf_counter() - start
 
@@ -115,7 +118,7 @@ if error_code[None] == 0:
 v1000 = []
 
 for i in ti.static(range(ny)):
-    v1000.append(round(u[1000, i][0], 5))
+    v1000.append(round(u[nx - 24, i][0], 9))
 
 velocity1 = np.array(v1000)
-np.savetxt("../Results/Test_2.csv", velocity1, delimiter=",", fmt="%f")
+np.savetxt("../Results/Result_1.csv", velocity1, delimiter=",", fmt="%f")
