@@ -1,9 +1,5 @@
 # LBM Solver & Web App Documentation
 
-> Private working doc. Fill in each `TODO`; delete sections you don't need.
-> Part A (sections 1–8) covers the solver in `src/`. Part B (sections 9–20) covers the web app in `web/` and `web_v3/`.
-> Items marked *(from code)* were read from the source and should be re-checked when the code changes.
-
 ---
 
 # Part A: Solver
