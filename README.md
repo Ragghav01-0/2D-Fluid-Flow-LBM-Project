@@ -1,5 +1,5 @@
 # LBM Solver & Web App Documentation
-
+Creator: Ragghav Karunagaran - 16 yrs old
 ---
 
 # Part A: Solver
