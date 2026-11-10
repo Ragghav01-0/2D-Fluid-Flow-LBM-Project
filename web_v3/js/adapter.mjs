@@ -15,7 +15,8 @@ export function createAdapter() {
   // ---------------------------------------------------------------- live
   function connectLive() {
     return new Promise(resolve => {
-      if (forceDemo || !/^https?:$/.test(location.protocol)) return resolve(false);
+      // Hosted copies (https, not this computer) are Demo-only: a ws:// socket from an https page throws.
+      if (forceDemo || !/^https?:$/.test(location.protocol) || !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return resolve(false);
       let settled = false;
       const sock = new WebSocket(`ws://${location.host}/`);
       sock.binaryType = 'arraybuffer';
