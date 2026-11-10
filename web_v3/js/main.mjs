@@ -82,7 +82,7 @@ function paintNav() {
   gear.onclick = () => { if (openPop) { closePop(); return; } openPop = popSettings(); gear.parentElement.append(openPop); };
   const pct = S.tel ? Math.round((S.tel.step / Math.max((S.state.settings?.stop?.steps || 0), 1)) * 100) : 0;
   topbar.replaceChildren(
-    h('a', { class: 'brand', href: '#/home' }, mark(), h('span', {}, 'Vessel Flow Lab')),
+    h('a', { class: 'brand', href: '#/home' }, mark(), h('span', {}, 'ENSKOG-arterial')),
     h('nav', { class: 'nav-links', 'aria-label': 'Main' }, link('#/setup', 'Simulate', ['home', 'setup', 'run', 'summary']), link('#/history', 'History', ['history', 'compare']), link('#/guide', 'Guide', ['guide'])),
     h('div', { class: 'topbar-actions' }, run && current !== 'run' ? h('a', { class: 'run-pill', href: '#/run' }, h('i'), S.state.state === 'measuring' ? 'Comparing…' : 'Running') : null, chip, gear));
   tabbar.replaceChildren(
