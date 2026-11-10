@@ -1,4 +1,4 @@
-"""Local server: serves web/static and relays one solver run to the browser over a WebSocket.
+"""Local server: serves web_v3 and relays one solver run to the browser over a WebSocket.
 
     python -m web            # opens the browser
     python -m web --gui      # the engine's own ti.GUI window instead (src/Simulator.py, unchanged)
@@ -30,7 +30,7 @@ from websockets.http11 import Response
 from . import physics, protocol, system
 
 ROOT = Path(__file__).resolve().parent.parent
-STATIC = Path(__file__).resolve().parent / "static"
+STATIC = Path(__file__).resolve().parent.parent / "web_v3"
 SPLASH = Path(__file__).resolve().parent / "splash.sh"
 RUNS = Path(__file__).resolve().parent / "runs"
 KEEP_RUNS = 3
@@ -421,7 +421,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m web")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--no-browser", action="store_true")
-    ap.add_argument("--static", type=Path, default=STATIC, help="front end folder to serve (default: web/static)")
+    ap.add_argument("--static", type=Path, default=STATIC, help="front end folder to serve (default: web_v3)")
     ap.add_argument("--no-anim", action="store_true", help="skip the start-up animation")
     ap.add_argument("--gui", action="store_true", help="run the engine's own ti.GUI window instead of the web UI")
     a = ap.parse_args(argv)

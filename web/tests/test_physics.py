@@ -60,7 +60,7 @@ def test_protocol():
 
 
 def test_js_geometry_parity():
-    js = f"""import {{ peakHeights, throatOpen }} from '{ROOT}/web/static/js/geometry.mjs';
+    js = f"""import {{ peakHeights, throatOpen }} from '{ROOT}/web_v3/js/geometry.mjs';
     const cases = {json.dumps([[0.5, False, -1.0], [0.5, True, -1.0], [0.8, False, 0.0], [0.3, False, 1.0], [0.0, True, -1.0]])};
     console.log(JSON.stringify(cases.map(([s, sym, l]) => {{ const c = {{severity: s, symmetric: sym, lopsided: l, location: .3, length: 450}}; const p = peakHeights(c); return [p.bot, p.top, throatOpen(c)]; }})));"""
     out = json.loads(subprocess.run(["node", "--input-type=module", "-e", js], capture_output=True, text=True, check=True).stdout)
