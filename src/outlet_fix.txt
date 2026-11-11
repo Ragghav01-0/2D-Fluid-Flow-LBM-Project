@@ -96,6 +96,31 @@ TRT_and_Stream.py in git HEAD)
   Cost: the split adds one extra full-grid read and write per step (f_pull is written by
   stream() and read again by collide()).
 
+APPLIED IN ENSKOG + POISEUILLE VALIDATION (2026-11-09/11, ~/Projects/ENSKOG/src)
+--------------------------------------------------------------------------------
+  The fix above was re-applied in ENSKOG (uncommitted): TRT_and_Stream.py, Zou_he_inlet.py and
+  Zou_he_outlet.py copied verbatim from the code listing below; Simulator.py step order changed;
+  wall rows y=0 and y=ny-1 enabled in Initialize_Object.py. This folder was not touched.
+
+  Run (256x64, tau_s 0.884, ux 0.05, CPU): converged at step 32100, no NaN, outlet rho 1.0000,
+  Qin 3.1713 vs Qout 3.1712 (0.004% mismatch). Centerline rho falls from 1.017 (x=5) to 1.000 (x=255).
+
+  Poiseuille L2 relative error, profile sampled at x = nx-24:
+    Graph.py definition (R = ny/2, peak 1.5*0.05)               4.1%
+    corrected R = (ny-2)/2 = 31, peak 1.5*0.05                  2.1%
+    corrected R, peak 0.0766 from the numerical mean flow       0.076%
+  The remaining 2.1% is the flat inlet: developed mean velocity is ~0.0511, not 0.05.
+
+  Not fixed (Graph.py): still reads ../Results/Test_2.csv (simulator writes Result_1.csv) and still
+  uses R = ny/2 with y = row + 0.5. With halfway bounce-back use R = (ny-2)/2 and y = row index.
+
+MLUPS NOTE
+  Measured on 256x64: ~64 MLUPS with the fix, ~26 for the original HEAD code (that run stopped early),
+  arch=ti.gpu (Metal) far slower (~3 per interval). MLUPS depends on grid size: fixed per-step cost
+  (about 6 kernel launches from the Python loop) and idle threads dominate on small grids, memory
+  bandwidth on large ones. The user measured 218 MLUPS on 1024x256, consistent with this. Compare
+  speeds only at equal grid size. 1024x256 was not run in the session.
+
 
 ==============================================================
 FULL CODE OF THE FIXED FILES (copy back into src/ to re-apply the fix)

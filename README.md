@@ -7,7 +7,7 @@ Creator: Ragghav Karunagaran - 16 yrs old
 ## 1. Overview
 - **Purpose:** The fluid flow solver computes the movement or distribution of fluid populations and how it flows past obstacles.
 - **Method:** D2Q9 Lattice-Boltzmann, TRT collision, pull streaming, Zou-He Boundary Conditions
-- **Backend:** Taichi Lang (CPU / GPU)
+- **Hardware Acceleration:** Taichi Lang (CPU / GPU)
 - **Web app:** https://enskoglbm.vercel.app/ (Demo only)
 
 ## 2. Installation
