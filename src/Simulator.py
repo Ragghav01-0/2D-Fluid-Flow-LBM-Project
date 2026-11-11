@@ -3,7 +3,7 @@ from colorama import Fore, Style
 import time as timePy
 import numpy as np
 
-ti.init(arch=ti.cpu, debug=True) # Defines whether cpu or gpu is being used
+ti.init(arch=ti.cpu) # Defines whether cpu or gpu is being used
 
 # Imports kernels from the different files
 from Initialization import initial_fluid
@@ -16,6 +16,7 @@ from Zero_Gradient_Outlet import *
 from TRT_and_Stream import *
 from CLI_header import *
 from Convergence_Checker import *
+from Zou_he_outlet import *
 
 # Simulation Metric Variables Initialization
 start = timePy.perf_counter()
@@ -31,7 +32,7 @@ CLI_header()
 
 sysreport = False
 
-for i in range(500):
+while not converged:
 
     # EDS loop
     if is_unstable[None] == 1 and not sysreport:
@@ -68,6 +69,7 @@ for i in range(500):
     trt_and_stream()
 
     zou_he_inlet()
+    # zou_he_outlet()
     zero_gradient_outlet()
 
     swap()
@@ -99,9 +101,6 @@ for i in range(500):
 
     step[None] += 1
 
-
-
-
 total_run_time = timePy.perf_counter() - start
 
 if error_code[None] == 0:
@@ -115,6 +114,11 @@ if error_code[None] == 0:
     print(f"[Timer] Simulation Time: {total_run_time:.2f}")
     print("=" * 90)
 
+rho_np = rho.to_numpy()
+col = rho_np[nx - 1, 1:ny - 1]   # last column, fluid rows only
+print("rho at outlet: min", col.min(), "max", col.max())
+print("any NaN:", np.isnan(rho_np).any())
+
 v1000 = []
 
 for i in ti.static(range(ny)):
@@ -122,3 +126,25 @@ for i in ti.static(range(ny)):
 
 velocity1 = np.array(v1000)
 np.savetxt("../Results/Result_1.csv", velocity1, delimiter=",", fmt="%f")
+
+rho_np = rho.to_numpy()
+u_np = u.to_numpy()            # expected shape (nx, ny, 2)
+ux_np = u_np[..., 0]
+
+rows = slice(1, ny - 1)        # fluid rows only (skip the two wall rows)
+
+def mass_flux(x):
+    return float(np.sum(rho_np[x, rows] * ux_np[x, rows]))
+
+# --- mass flux at several columns ---
+for x in (5, 50, 100, 150, 200, nx - 6):
+    print(f"x={x:4d}  mass flux = {mass_flux(x):.6f}")
+
+q_in, q_out = mass_flux(5), mass_flux(nx - 6)
+print("flux mismatch (%):", 100 * abs(q_in - q_out) / abs(q_in))
+
+# --- centerline density ---
+mid = ny // 2                                    # 32 when ny = 64
+cl = 0.5 * (rho_np[:, mid - 1] + rho_np[:, mid]) # average of the two middle fluid rows
+for x in (5, 50, 100, 150, 200, 240, nx - 1):
+    print(f"x={x:4d}  centerline rho = {cl[x]:.6f}")

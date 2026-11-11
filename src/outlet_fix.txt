@@ -1,0 +1,332 @@
+ZOU-HE OUTLET FIX
+=================
+
+SYMPTOM
+-------
+With zou_he_outlet() enabled (instead of zero_gradient_outlet()) the run crashed:
+  - step 1008, error code 2 (negative populations) at x=251, density about -8400.
+  - After partial fixes it survived longer (steps ~18000) but still ended in NaN.
+With zero_gradient_outlet() there was no crash, but mean density rose steadily
+(1.0 -> 1.8 over 30000 steps): mass was accumulating.
+
+ROOT CAUSE
+----------
+1. Streaming and collision were fused in trt_and_stream(). With pull streaming,
+   the populations f3, f6, f7 at the outlet column (x = nx-1) point in from
+   outside the domain. The wrapped index (x+1) % nx returns the inlet column, so
+   those three values are wrong.
+   The fused kernel still used them to compute rho and u, and collided with them.
+   Every population of the outlet node was corrupted before the boundary
+   condition ran.
+2. Zou-He balances the STREAMED (pre-collision) populations. The outlet kernel
+   ran after the fused kernel and read the COLLIDED f_new values for f0, f1, f2,
+   f4, f5, f8. The ux it derived was inconsistent, so mass leaked.
+3. The outlet density is pinned (rho_out = 1.0) and ux is derived from it, so
+   an inconsistent ux turned into backflow at the outlet (ux went to -0.1, then
+   -0.2), density piled up behind it, and populations went negative / NaN.
+4. zou_he_inlet() had the same flaw (it patched collided f_new at x = 0), which
+   kept a small mass imbalance even after the outlet was corrected.
+
+The Zou-He formulas themselves were correct. The order of operations was not.
+
+WHAT WAS CHANGED
+----------------
+TRT_and_Stream.py
+  trt_and_stream() was split into two kernels:
+    stream()   pull streaming + bounce-back into f_pull
+    collide()  moments, TRT collision, error detection, writes f_new
+  The lines were moved verbatim. The TRT math is unchanged.
+
+Zou_he_outlet.py (rewritten)
+  Works on f_pull (streamed, pre-collision) instead of f_new. It overwrites the
+  unknown f3, f6, f7 with the Zou-He values so collide() sees a consistent node.
+    ux = -1 + (f0 + f2 + f4 + 2*(f1 + f5 + f8)) / rho_out
+    f3 = f1 - (2/3) rho_out ux
+    f6 = f8 - 0.5 (f2 - f4) - (1/6) rho_out ux
+    f7 = f5 + 0.5 (f2 - f4) - (1/6) rho_out ux
+
+Zou_he_inlet.py
+  f_new -> f_pull. Nothing else changed.
+
+Simulator.py
+  New step order:
+    stream() -> zou_he_inlet() -> zou_he_outlet() -> collide() -> swap() -> macro_update()
+  zero_gradient_outlet() is left commented out. It works on f_new, so if it is
+  used again it must be called after collide().
+
+HOW IT WAS VERIFIED
+-------------------
+(Wall rows at y = 0 and y = ny-1 enabled in Initialize_Object.py.)
+  - 40000-step run: inflow Q = outflow Q = 3.171, outlet density 1.0003, mean
+    density flat at 1.008 from step 20000 on.
+  - Full Simulator.py run converged at step 32100 with no NaN and outlet density
+    1.0000.
+Before the fix the same setup diverged (NaN at ~step 18000, or sooner).
+
+CAVEATS
+-------
+  - The inlet is still a flat profile (ux = 0.05 up to the walls); the parabolic
+    profile lines in Zou_he_inlet.py are commented out.
+  - Initialize_Object.py ships with the wall block commented out. Without walls
+    the channel is periodic in y and the flow is a uniform plug flow.
+
+POPULATION BUFFERS: f vs f_pull vs f_new (verified against Swap.py and the original
+TRT_and_Stream.py in git HEAD)
+---------------------------------------------------------------------------------
+  f       populations at the start of the step (the previous step's collided result).
+  f_pull  streamed, pre-collision populations.
+  f_new   post-collision populations.
+
+  Data flow per step:
+    f -> stream() -> f_pull -> zou_he_inlet() / zou_he_outlet() edit f_pull
+      -> collide() -> f_new -> swap() copies f_new into f -> macro_update()
+
+  f_pull is touched in four places after the fix:
+    1. stream()          writes it (pull streaming + bounce-back from f)
+    2. zou_he_inlet()    reads and writes it
+    3. zou_he_outlet()   reads and writes it
+    4. collide()         reads it (moments and TRT); the only reader besides the boundaries
+
+  Before the fix f_pull was used ONLY inside the fused trt_and_stream() kernel (written by
+  the streaming part, read by the collision part). No other file used it (Fields.py only
+  declares it, commented "combined stream + collision"). The boundary kernels worked on
+  f_new, which is why they acted on collided values. Splitting the kernel makes f_pull the
+  stage between streaming and collision, where Zou-He has to act.
+
+  Cost: the split adds one extra full-grid read and write per step (f_pull is written by
+  stream() and read again by collide()).
+
+
+==============================================================
+FULL CODE OF THE FIXED FILES (copy back into src/ to re-apply the fix)
+==============================================================
+
+----- BEGIN src/TRT_and_Stream.py -----
+from Fields import *
+
+# Streaming and collision are separate kernels so the Zou-He boundaries can be applied
+# to the streamed (pre-collision) populations in between. See Zou_he_outlet.py.
+@ti.kernel
+def stream():
+    for x, y in ti.ndrange(nx, ny):
+
+        # if current node is fluid
+        if mask[x, y] == 0:
+            for k in ti.static(range(9)):
+                # Pull Streaming
+                xn = (x - e_static[k][0] + nx) % nx
+                yn = (y - e_static[k][1] + ny) % ny
+
+                # if neighboring node is fluid
+                if mask[xn, yn] == 0:
+                    f_pull[x,y][k] = f[xn, yn][k]
+
+                # if neighboring node is solid
+                else:
+                    f_pull[x,y][k] = f[x, y][e_opp[k]]
+
+@ti.kernel
+def collide():
+    for x, y in ti.ndrange(nx, ny):
+        if mask[x, y] == 0:
+            c_rho = 0.0
+            ux = 0.0
+            uy = 0.0
+            for k in ti.static(range(9)):
+                c_rho += f_pull[x, y][k]
+                ux += f_pull[x, y][k] * e_static[k][0]
+                uy += f_pull[x, y][k] * e_static[k][1]
+
+            if c_rho > 1e-4:
+
+                ux /= c_rho
+                uy /= c_rho
+            u2 = (ux ** 2) + (uy ** 2)
+
+            # ============ TRT Collision Operator ==============
+
+            # k = 0
+            feq_0 = (4.0 / 9.0) * c_rho * (1.0 - 1.5 * u2)
+            f_new[x, y][0] = f_pull[x, y][0] - omega_s * (f_pull[x, y][0] - feq_0)
+
+            # k = 1 & 3
+            f_plus13 = 0.5 * (f_pull[x, y][1] + f_pull[x, y][3])
+            f_minus13 = 0.5 * (f_pull[x, y][1] - f_pull[x, y][3])
+            feq_plus_13 = (1.0 / 9.0) * c_rho * (1.0 + 4.5 * (ux) ** 2 - 1.5 * u2)
+            feq_minus_13 = (1.0 / 3.0) * c_rho * ux
+
+            f_new[x, y][1] = f_pull[x, y][1] - omega_s * (f_plus13 - feq_plus_13) - omega_a * (f_minus13 - feq_minus_13)
+            f_new[x, y][3] = f_pull[x, y][3] - omega_s * (f_plus13 - feq_plus_13) + omega_a * (f_minus13 - feq_minus_13)
+
+            # k = 2 & 4
+            f_plus24 = 0.5 * (f_pull[x, y][2] + f_pull[x, y][4])
+            f_minus24 = 0.5 * (f_pull[x, y][2] - f_pull[x, y][4])
+            feq_plus_24 = (1.0 / 9.0) * c_rho * (1.0 + 4.5 * (uy) ** 2 - 1.5 * u2)
+            feq_minus_24 = (1.0 / 3.0) * c_rho * uy
+
+            f_new[x, y][2] = f_pull[x, y][2] - omega_s * (f_plus24 - feq_plus_24) - omega_a * (f_minus24 - feq_minus_24)
+            f_new[x, y][4] = f_pull[x, y][4] - omega_s * (f_plus24 - feq_plus_24) + omega_a * (f_minus24 - feq_minus_24)
+
+            # k = 5 & 7
+            f_plus57 = 0.5 * (f_pull[x, y][5] + f_pull[x, y][7])
+            f_minus57 = 0.5 * (f_pull[x, y][5] - f_pull[x, y][7])
+            feq_plus_57 = (1.0 / 36.0) * c_rho * (1.0 + 4.5 * (ux + uy) ** 2 - 1.5 * u2)
+            feq_minus_57 = (1.0 / 12.0) * c_rho * (ux + uy)
+
+            f_new[x, y][5] = f_pull[x, y][5] - omega_s * (f_plus57 - feq_plus_57) - omega_a * (f_minus57 - feq_minus_57)
+            f_new[x, y][7] = f_pull[x, y][7] - omega_s * (f_plus57 - feq_plus_57) + omega_a * (f_minus57 - feq_minus_57)
+
+            # k = 6 & 8
+            f_plus68 = 0.5 * (f_pull[x, y][6] + f_pull[x, y][8])
+            f_minus68 = 0.5 * (f_pull[x, y][6] - f_pull[x, y][8])
+            feq_plus_68 = (1.0 / 36.0) * c_rho * (1.0 + 4.5 * (-ux + uy) ** 2 - 1.5 * u2)
+            feq_minus_68 = (1.0 / 12.0) * c_rho * (-ux + uy)
+
+            f_new[x, y][6] = f_pull[x, y][6] - omega_s * (f_plus68 - feq_plus_68) - omega_a * (f_minus68 - feq_minus_68)
+            f_new[x, y][8] = f_pull[x, y][8] - omega_s * (f_plus68 - feq_plus_68) + omega_a * (f_minus68 - feq_minus_68)
+
+        # ----------------------- Error Detection System (EDS) and origin pinpointer -----------------------
+            local_error_code = 0
+            nanreport = False
+
+            if y > 3 and y < ny - 4 and x > 3 and x < nx - 4:
+                # check for NaN values
+                if ti.math.isnan(u2) == 1 or ti.math.isnan(ux) == 1:
+                    local_error_code = 4
+                    error_code[None] = 4
+                    nanreport = True
+
+                # Check if rho is out of bounds
+                elif (c_rho < 0.6 or c_rho > 1.8) and step[None] > 3000:
+                    local_error_code = 3
+
+                # Check if simulation is exceeding Mach number
+                elif u2 > 0.16  and step[None] > 3000:
+                    local_error_code = 1
+
+                else:
+                    for k in ti.static(range(9)):
+                        # Check if distribution populations are negative
+                        if f_new[x, y][k] < -1e-3:
+                            local_error_code = 2
+                            error_code[None] = 2
+                            nanreport = True
+
+                if local_error_code != 0:
+                    atomic_return_value = ti.atomic_max(is_unstable[None], 1)
+
+                    if atomic_return_value == 0:
+                        err_x[None] = x
+                        err_y[None] = y
+                        err_rho[None] = c_rho
+                        err_u2[None] = u2
+                        err_ux[None] = ux
+                        err_uy[None] = uy
+                        error_code[None] = local_error_code
+
+                        for k in ti.static(range(9)):
+                            err_f_pop[k] = f_new[x, y][k]
+
+----- END src/TRT_and_Stream.py -----
+
+----- BEGIN src/Zou_he_inlet.py -----
+from Fields import *
+from Initialize_Object import mask
+
+@ti.kernel
+def zou_he_inlet():
+    ramp_time = 1500.0
+    ux = ux_target
+
+    if step[None] < ramp_time:
+        x = step[None] / ramp_time
+        ux *= (3.0 * x ** 2 - 2.0 * x ** 3)
+
+    for y in ti.ndrange(ny):
+        if mask[0, y] == 0:
+            # parabolic = 4.0 * y * ( (ny -1) - y) / ((ny - 1) ** 2)
+            # ux *= parabolic
+            # uy = 0.0
+
+            f0 = f_pull[0, y][0]
+            f2 = f_pull[0, y][2]
+            f4 = f_pull[0, y][4]
+            f3 = f_pull[0, y][3]
+            f6 = f_pull[0, y][6]
+            f7 = f_pull[0, y][7]
+
+            rho_calc = (f0 + f2 + f4 + 2 * (f3 + f6 + f7)) / (1 - ux)
+
+            # Calculating Unknown population distributions at inlet using Zou-He equations with predetermined density
+            f_pull[0, y][1] = f3 + (2.0 / 3.0) *rho_calc * ux
+            f_pull[0, y][5] = f7 - 0.5 * (f2 - f4) + (1.0 / 6.0) * rho_calc * ux + 0.5 * rho_calc * uy
+            f_pull[0, y][8] = f6 + 0.5 * (f2 - f4) + (1.0 / 6.0) * rho_calc * ux - 0.5 * rho_calc * uy
+
+            rho[0, y] = rho_calc
+            u[0, y] = ti.Vector([ux, uy])
+----- END src/Zou_he_inlet.py -----
+
+----- BEGIN src/Zou_he_outlet.py -----
+from Fields import *
+from Initialize_Object import mask
+
+# Zou-He pressure (fixed density) outlet on the east boundary, x = nx - 1.
+#
+# Must run AFTER stream() and BEFORE collide(), on f_pull (streamed, pre-collision).
+#
+# Previous problem: this kernel ran after the fused trt_and_stream() and edited f_new.
+#   1. At x = nx - 1 the populations f3, f6, f7 point in from outside the domain. The pull
+#      stream wraps them in from x = 0 (periodic), so they are wrong. The fused kernel still
+#      used them to compute rho/u and collide, which corrupted every population of the outlet
+#      node, including f1, f5, f8 that this kernel then read.
+#   2. Zou-He balances the streamed populations, not collided ones. Using collided
+#      f0, f1, f2, f4, f5, f8 gave an inconsistent ux, so mass leaked, the outlet velocity
+#      swung into backflow, and density piled up until populations went negative / NaN.
+#
+# Fix: set the unknown f3, f6, f7 on f_pull first, so the collision sees a consistent node.
+@ti.kernel
+def zou_he_outlet():
+    x = nx - 1
+    for y in ti.ndrange(ny):
+        if mask[x, y] == 0:
+            # known: f0, f2, f4 (tangential) and f1, f5, f8 (streamed in from x - 1)
+            f0 = f_pull[x, y][0]
+            f2 = f_pull[x, y][2]
+            f4 = f_pull[x, y][4]
+            f1 = f_pull[x, y][1]
+            f5 = f_pull[x, y][5]
+            f8 = f_pull[x, y][8]
+
+            # normal velocity that makes the node density equal rho_out (uy = 0)
+            ux = -1.0 + (f0 + f2 + f4 + 2.0 * (f1 + f5 + f8)) / rho_out
+            ru = rho_out * ux
+
+            # unknown populations (replace the wrapped-around values)
+            f_pull[x, y][3] = f1 - (2.0 / 3.0) * ru
+            f_pull[x, y][6] = f8 - 0.5 * (f2 - f4) - (1.0 / 6.0) * ru
+            f_pull[x, y][7] = f5 + 0.5 * (f2 - f4) - (1.0 / 6.0) * ru
+
+----- END src/Zou_he_outlet.py -----
+
+----- Simulator.py: diff of the step-order change (before -> after) -----
+(Simulator.py also contained your other uncommitted edits; only this part is mine)
+--- /private/tmp/claude-501/-Users-ragghav-Projects-FluidFlow-LBM-GpuAcceleration-src/07455a00-db5b-4ac8-8968-8d5e56dbb9e4/scratchpad/zg/Simulator.py	2026-11-09 18:40:39
++++ Simulator.py	2026-11-09 18:46:14
+@@ -66,12 +66,14 @@
+         running = False
+         break
+ 
+-    trt_and_stream()
++    stream()
+ 
++    # Boundaries act on streamed (pre-collision) populations, then collide
+     zou_he_inlet()
+-    # zou_he_outlet()
+-    zero_gradient_outlet()
++    zou_he_outlet()
++    # zero_gradient_outlet()  # alternative outlet; acts on f_new, so would go after collide()
+ 
++    collide()
+     swap()
+     macro_update()
+ 

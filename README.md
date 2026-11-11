@@ -1,6 +1,6 @@
 # LBM Solver & Web App Documentation
+
 Creator: Ragghav Karunagaran - 16 yrs old
----
 
 # Part A: Solver
 
@@ -8,7 +8,7 @@ Creator: Ragghav Karunagaran - 16 yrs old
 - **Purpose:** The fluid flow solver computes the movement or distribution of fluid populations and how it flows past obstacles.
 - **Method:** D2Q9 Lattice-Boltzmann, TRT collision, pull streaming, Zou-He Boundary Conditions
 - **Backend:** Taichi Lang (CPU / GPU)
-- **Web app:** Being Implemented
+- **Web app:** https://enskoglbm.vercel.app/ (Demo only)
 
 ## 2. Installation
 
@@ -120,6 +120,24 @@ Results/    simulation output (gitignored)
 - Implementing a Web-based, interactive platform to be accessible for non-coders.
 - Validating Von Karman Vortex Shedding according to DFG Case 2D-2 at Re = 100.
 - Implementing Zou-He Outlet BC, with fixed pressure.
+
+## 10. Gallery
+Put images in `images/` and replace each TODO with `![caption](images/file.png)`.
+
+### 10.1 Validation
+![Poiseuille validation: LBM vs analytical velocity profile](poiseuille_validation.png)
+
+### 10.2 Von Kármán vortex street
+TODO: velocity / vorticity snapshot at Re = 100
+
+### 10.3 Stenosis / plaque
+TODO: velocity field through the stenosis
+
+### 10.4 Terminal & installer
+TODO: screenshot of the CLI header and install animation
+
+### 10.5 Web app
+TODO: screenshots once the web app exists
 
 ---
 
