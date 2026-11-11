@@ -205,11 +205,10 @@ export class FlowStage {
   // ---------------------------------------------------------------- drawing
   draw(dt) {
     const gl = this.gl; if (!gl) return;
-    this.t += dt;
+    if (!this.reduce) this.t += dt;       // reduced motion stills the shimmer, but easing below still needs real time
     if (this.mix < 1) this.mix = Math.min(1, (performance.now() - this.tArrive) / this.interval);
-    const ease = k => dt > 0 ? Math.min(1, dt * k) : 1;       // reduced motion passes dt = 0: jump to the target, never freeze short of it
-    this.vmaxCur += (this.vmaxTgt - this.vmaxCur) * ease(7);
-    for (let i = 0; i < 2; i++) this.view[i] += (this.viewTo[i] - this.view[i]) * ease(9);
+    this.vmaxCur += (this.vmaxTgt - this.vmaxCur) * Math.min(1, dt * 7);
+    for (let i = 0; i < 2; i++) this.view[i] += (this.viewTo[i] - this.view[i]) * Math.min(1, dt * 9);
     const hero = this.o.mode === 'hero', U = this.U;
     gl.viewport(0, 0, this.glc.width, this.glc.height);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tex[1 - this.cur]); gl.uniform1i(U.uA, 0);
@@ -230,7 +229,7 @@ export class FlowStage {
   stepInk(dt) {
     const c = this.ic.getContext('2d'), W = this.W, H = this.H, dpr = this.dpr || 1;
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (!this.o.ink || this.reduce || (this.o.mode === 'frames' && !this.rg)) { c.clearRect(0, 0, W, H); return; }
+    if (!this.o.ink || (this.reduce && this.o.mode !== 'frames') || (this.o.mode === 'frames' && !this.rg)) { c.clearRect(0, 0, W, H); return; }
     c.globalCompositeOperation = 'destination-out'; c.fillStyle = 'rgba(0,0,0,.16)'; c.fillRect(0, 0, W, H);          // fade the trails
     c.globalCompositeOperation = 'source-over'; c.lineCap = 'round'; c.lineWidth = 1.5;
     const span = this.view[1], k = dt * 0.5;
@@ -251,7 +250,7 @@ export class FlowStage {
       if (!this.visible || !this.el.isConnected) return;
       const dt = Math.min(.05, (now - last) / 1000); last = now;
       if (this.o.tilt) { this.rx += (this.trx - this.rx) * Math.min(1, dt * 4); this.ry += (this.try - this.ry) * Math.min(1, dt * 4); this.el.style.setProperty('--rx', this.rx.toFixed(2) + 'deg'); this.el.style.setProperty('--ry', this.ry.toFixed(2) + 'deg'); }
-      this.draw(this.reduce ? 0 : dt); this.stepInk(dt); this.placeCallouts();
+      this.draw(dt); this.stepInk(dt); this.placeCallouts();
       this.raf = requestAnimationFrame(tick);
     };
     this.raf = requestAnimationFrame(tick);
