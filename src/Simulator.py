@@ -3,7 +3,7 @@ from colorama import Fore, Style
 import time as timePy
 import numpy as np
 
-ti.init(arch=ti.cpu, debug=True) # Defines whether cpu or gpu is being used
+ti.init(arch=ti.gpu) # Defines whether cpu or gpu is being used
 
 # Imports kernels from the different files
 from Initialization import initial_fluid
@@ -27,11 +27,11 @@ initial_fluid()
 
 # initialize CLI header
 CLI_header()
-gui = ti.GUI("LBM Simulation", res=(nx, ny))
+# gui = ti.GUI("LBM Simulation", res=(nx, ny))
 
 sysreport = False
 
-while gui.running:
+while not converged:
 
     # EDS loop
     if is_unstable[None] == 1 and not sysreport:
@@ -74,10 +74,10 @@ while gui.running:
     macro_update()
 
     # GUI pixel update loop
-    if step[None] % 5 == 0:
-       updating_pixels()
-       gui.set_image(pixels)
-       gui.show()
+    # if step[None] % 5 == 0:
+    #    updating_pixels()
+    #    gui.set_image(pixels)
+    #    gui.show()
 
     if step[None] > 0 and step[None] % interval == 0:
         Convergence_Checker()

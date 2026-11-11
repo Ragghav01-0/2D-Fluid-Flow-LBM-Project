@@ -207,8 +207,9 @@ export class FlowStage {
     const gl = this.gl; if (!gl) return;
     this.t += dt;
     if (this.mix < 1) this.mix = Math.min(1, (performance.now() - this.tArrive) / this.interval);
-    this.vmaxCur += (this.vmaxTgt - this.vmaxCur) * Math.min(1, dt * 7);
-    for (let i = 0; i < 2; i++) this.view[i] += (this.viewTo[i] - this.view[i]) * Math.min(1, dt * 9);
+    const ease = k => dt > 0 ? Math.min(1, dt * k) : 1;       // reduced motion passes dt = 0: jump to the target, never freeze short of it
+    this.vmaxCur += (this.vmaxTgt - this.vmaxCur) * ease(7);
+    for (let i = 0; i < 2; i++) this.view[i] += (this.viewTo[i] - this.view[i]) * ease(9);
     const hero = this.o.mode === 'hero', U = this.U;
     gl.viewport(0, 0, this.glc.width, this.glc.height);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tex[1 - this.cur]); gl.uniform1i(U.uA, 0);
@@ -289,7 +290,9 @@ export class FlowStage {
       n.style.left = `${u * 100}%`; n.style.top = `${c.y * 100}%`;
       const pw = n.querySelector('.pill').offsetWidth + 30, x = u * this.W, fitsR = x + pw < this.W - 6, fitsL = x - pw > 6;
       const pref = c.dir ? c.dir === 'l' : u > .62, left = pref ? (fitsL || !fitsR) : !(fitsR || !fitsL);       // honour the preference when it fits, else the side that does
-      n.classList.toggle('flip', left); n.style.setProperty('--dy', `${c.dy || 0}px`);
+      // keep the pill inside the window: a short window (whole-vessel view, phones) would otherwise clip it at the top or bottom
+      const half = n.querySelector('.pill').offsetHeight / 2 + 6, y = c.y * this.H + (c.dy || 0), dy = (c.dy || 0) + Math.max(half, Math.min(y, this.H - half)) - y;
+      n.classList.toggle('flip', left); n.style.setProperty('--dy', `${dy}px`);
     });
   }
 }

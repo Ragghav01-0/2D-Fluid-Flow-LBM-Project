@@ -81,7 +81,7 @@ max_diff = ti.field(dtype=ti.f32, shape=())
 max_vel = ti.field(dtype=ti.f32, shape=())
 
 # Simulation metric calculation
-interval = 250
+interval = 50
 nodes = nx * ny
 avg_mlups = 0
 log_count = 0
