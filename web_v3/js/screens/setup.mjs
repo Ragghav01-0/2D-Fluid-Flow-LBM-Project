@@ -9,7 +9,7 @@ const STEPS = ['Blockage', 'Run length', 'Review'];
 
 export function mount(el, ctx) {
   const { S, A } = ctx, d = S.draft, limits = S.hello.limits, lengths = S.hello.lengths;
-  let step = 0, dir = 1, closeup = true;
+  let step = 0, dir = 1, closeup = false;
   const stepsPerSec = () => S.tel?.mlups ? S.tel.mlups * 1e6 / (NX * 256) : 700;
   const ftSteps = () => NX / d.ux_target;
   const estSteps = () => d.stop.mode === 'steps' ? (d.stop.steps ?? lengths[d.stop.size] * ftSteps()) : ftSteps() * (1.7 + 2.9 * d.severity);
@@ -18,9 +18,9 @@ export function mount(el, ctx) {
   const throat = () => d.ux_target / Math.max(1 - d.severity, 0.05);
 
   // ---- the flow window (left, stays put)
-  const stage = new FlowStage({ mode: 'frames', ink: false, view: [0, .4] });
+  const stage = new FlowStage({ mode: 'frames', ink: false, view: [0, 1] });
   const zoom = h('div', { class: 'seg', role: 'radiogroup', 'aria-label': 'View' }, [['close', 'Close-up'], ['whole', 'Whole vessel']].map(([v, l]) =>
-    h('button', { role: 'radio', 'aria-checked': String(v === 'close'), onclick: () => { closeup = v === 'close'; [...zoom.children].forEach(b => b.setAttribute('aria-checked', String(b.textContent === l))); frame(); } }, l)));
+    h('button', { role: 'radio', 'aria-checked': String(v === (closeup ? 'close' : 'whole')), onclick: () => { closeup = v === 'close'; [...zoom.children].forEach(b => b.setAttribute('aria-checked', String(b.textContent === l))); frame(); } }, l)));
   const slot = h('div', { class: 'stage-slot' }, stage.el, h('div', { class: 'stage-bar' }, h('span', { class: 'stage-phase' }, 'Your vessel, before the flow'), zoom), h('p', { class: 'small muted', style: 'margin-top:14px' }, 'A side view of the vessel, with liquid flowing from left to right. The gray shape is the blockage.'));
 
   // ---- the panel (right)
