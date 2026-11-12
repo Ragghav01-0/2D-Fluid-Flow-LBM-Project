@@ -5,12 +5,13 @@
 #   ./open_website.sh --demo   open the Demo mode (no solver)
 # Your terminal stays free. Log: web/runs/server.log
 cd "$(dirname "$0")" || exit 1
-PY=.venv/bin/python
+PY="${PY:-.venv_lbm/bin/python}"
 mkdir -p web/runs
 PIDFILE=web/runs/server.pid
 PORTFILE=web/runs/server.port
 LOG=web/runs/server.log
 
+OPEN=open; command -v open >/dev/null 2>&1 || OPEN=xdg-open
 running() { [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
 
 if [ "$1" = "stop" ]; then
@@ -30,12 +31,12 @@ SUFFIX=""
 if running && [ -f "$PORTFILE" ]; then
   URL="http://127.0.0.1:$(cat "$PORTFILE")/$SUFFIX"
   echo "Already running: $URL"
-  open "$URL" 2>/dev/null || echo "Could not open a browser. Open the address above yourself."
+  "$OPEN" "$URL" 2>/dev/null || echo "Could not open a browser. Open the address above yourself."
   exit 0
 fi
 
 if [ ! -x "$PY" ]; then
-  echo "Python environment not found at $PY. Set it up first." >&2
+  echo "Python environment not found at $PY. Run ./install.sh, then use ./run.sh." >&2
   exit 1
 fi
 
@@ -76,7 +77,7 @@ done
 
 URL="http://127.0.0.1:$PORT/$SUFFIX"
 echo "Running at $URL"
-if ! open "$URL" 2>/dev/null; then
+if ! "$OPEN" "$URL" 2>/dev/null; then
   echo "Could not open a browser. Open the address above yourself."
 fi
 echo "Stop it with: ./open_website.sh stop"

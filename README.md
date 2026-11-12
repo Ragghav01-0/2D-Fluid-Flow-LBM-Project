@@ -10,8 +10,7 @@
 - **Purpose:** The fluid flow solver computes the movement or distribution of fluid populations and how it flows past obstacles.
 - **Method:** D2Q9 Lattice-Boltzmann, TRT collision, pull streaming, Zou-He Boundary Conditions
 - **Backend:** Taichi Lang (CPU / GPU)
-- **Web app:** Being Implemented
-- **Version / date:** TODO
+- **Web app:** [enskoglbm.vercel.app](https://enskoglbm.vercel.app/#/home)
 
 ## 2. Installation
 
@@ -21,26 +20,28 @@
 | Python | 3.12 or older |
 | taichi | 1.7.4 |
 | numpy / matplotlib / colorama | 2.4.6 , 3.11.2 , 0.4.6 |
-| GPU / driver (optional) | TODO |
 
 ### 2.2 Steps
 ```bash
 # macOS / Linux
 ./install.sh
-source venvActivate.sh
+./run.sh web        # web UI (or: demo, solver, stop)
+./run.sh solver     # terminal solver, no GUI
 
 # Windows
 install.bat
+run.bat web         # web UI (or: demo, solver)
+run.bat solver      # terminal solver, no GUI
 ```
-- Manual alternative (`pip install -r requirements.txt` or `conda env create -f environment.yml`): TODO
-- Verify install: `TODO command` → expected output: `TODO`
+`run.sh` / `run.bat` find the environment themselves, so no activate step is needed (`venvActivate.sh` is only for working in the environment by hand).
+
 
 On macOS/Linux, `install.sh` plays a terminal animation of flow past a cylinder while the packages install (about 37 s minimum). The full log goes to `install.log`. The animation is skipped when output is not a terminal (CI, piped output) or the window is too small. `source venvActivate.sh` plays a short flow-past-a-stenosis splash before activating the environment (set `LBM_NO_ANIM=1` to skip it).
 
 ### 2.3 Troubleshooting
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `No module named 'taichi'` | venv not activated | `source venvActivate.sh` |
+| `No module named 'taichi'` | environment not found | Run `./install.sh` (`install.bat`), then start with `./run.sh` (`run.bat`) |
 | `taichi==1.7.4` fails to install | Python newer than 3.12 | Use Python 3.12 or older |
 | `Error Code: 1` (warning) | Speed `u2 > 0.16` after step 3000, Mach limit exceeded | Lower inlet velocity |
 | `Error Code: 2` (stops) | Negative distribution populations (`f < -1e-3`) | Same as above; check the `Location` printed to find the origin |
@@ -214,9 +215,11 @@ src/            the solver (unchanged)
 
 ### 11.2 Commands
 ```bash
-.venv/bin/python -m web                     # current UI (web_v3), opens http://127.0.0.1:8765
-.venv/bin/python -m web --gui               # the engine's own ti.GUI window
-.venv/bin/python -m web --port 9000 --no-browser
+./run.sh web  (Windows: run.bat web)        # recommended launcher; also demo, solver, stop
+# Manual alternative, with the environment active:
+python -m web                               # current UI (web_v3), opens http://127.0.0.1:8765
+python -m web --gui               # the engine's own ti.GUI window
+python -m web --port 9000 --no-browser
 ```
 - Demo mode: open the page with `?demo`, or without a solver. It runs an analytic stand-in and is labelled "Demo" everywhere.
 - Verify install: `TODO command` → expected output: `TODO`
