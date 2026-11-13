@@ -66,11 +66,12 @@ while not converged:
         running = False
         break
 
-    trt_and_stream()
+    stream()
 
     zou_he_inlet()
-    # zou_he_outlet()
-    zero_gradient_outlet()
+    zou_he_outlet()
+
+    collide()
 
     swap()
     macro_update()

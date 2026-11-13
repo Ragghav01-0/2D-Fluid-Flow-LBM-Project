@@ -3,14 +3,14 @@ import matplotlib.pyplot as plt
 from Fields import *
 from Zou_he_inlet import ux_target
 
-v1 = np.loadtxt('../Results/Test_2.csv', delimiter=',')
+v1 = np.loadtxt('../Results/Result_1.csv', delimiter=',')
 ny_value = len(v1)
 height = np.arange(ny_value)
 
 # Analytical Solution
-y = height + 0.5
+y = height
 center = (ny_value - 1) / 2
-R = ny_value / 2.0
+R = (ny_value - 2) / 2.0
 
 max = 1.5 * ux_target
 analytical = max * (1.0 - ((y - center) / R) ** 2)

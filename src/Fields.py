@@ -2,8 +2,8 @@ import taichi as ti
 ti.init(arch=ti.cpu)
 
 # Lattice dimensions
-nx = 1024
-ny = 256 #191
+nx = 256
+ny = 64 #191
 
 # discrete velocities(f) + buffers, density(rho) and velocity(u)
 f = ti.Vector.field(9, dtype=ti.f32, shape=(nx, ny))
@@ -52,8 +52,6 @@ tau_a = 0.5 + lambda_magic / (tau_s - 0.5)
 omega_s = 1.0 / tau_s
 omega_a = 1.0 / tau_a
 
-# combined stream + collision
-f_pull = ti.Vector.field(9, dtype=ti.f32, shape=(nx, ny))
 
 # Error Detection System
 is_unstable = ti.field(dtype=ti.i32, shape=())

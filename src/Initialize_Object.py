@@ -7,13 +7,11 @@ def initialize_object():
 
     for x, y in ti.ndrange(nx, ny):
 
-        mask[x,y] = 0
-
     #     # sets top and bottom row as an obstacle
-    #     if y == 0 or y == ny - 1:
-    #         mask[x, y] = 1
-    #     else:
-    #         mask[x, y] = 0
+        if y == 0 or y == ny - 1:
+            mask[x, y] = 1
+        else:
+            mask[x, y] = 0
 
     # Obstacle definition - Currently creates a circle
     # for x, y in ti.ndrange(nx, (1, ny - 1)):

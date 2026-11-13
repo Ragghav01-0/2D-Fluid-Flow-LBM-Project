@@ -1,7 +1,7 @@
 from Fields import *
 
 @ti.kernel
-def trt_and_stream():
+def stream():
     for x, y in ti.ndrange(nx, ny):
 
         # if current node is fluid
@@ -19,6 +19,10 @@ def trt_and_stream():
                 else:
                     f_pull[x,y][k] = f[x, y][e_opp[k]]
 
+@ti.kernel
+def collide():
+    for x, y in ti.ndrange(nx, ny):
+        if mask[x, y] == 0:
             c_rho = 0.0
             ux = 0.0
             uy = 0.0

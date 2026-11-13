@@ -6,7 +6,7 @@ LOG_FILE="$PWD/install.log"
 PANEL_H=19          # rows of the flow animation (shrunk to fit the terminal)
 PANEL_W=100         # columns of the flow animation (shrunk to fit the terminal)
 LOG_LINES=4         # live log lines shown under the animation
-MIN_DURATION=37     # seconds the whole installer (animation included) runs for
+MIN_DURATION=25     # seconds the whole installer (animation included) runs for
 TOTAL_LINES=$((1 + PANEL_H + 2 + 1 + LOG_LINES))
 CAPTIONS=(
   "Seeding the D2Q9 lattice with fluid populations"
