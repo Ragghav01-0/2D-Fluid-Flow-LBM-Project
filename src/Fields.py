@@ -2,8 +2,8 @@ import taichi as ti
 ti.init(arch=ti.cpu)
 
 # Lattice dimensions
-nx = 256
-ny = 64 #191
+nx = 1024
+ny = 256 #191
 
 # discrete velocities(f) + buffers, density(rho) and velocity(u)
 f = ti.Vector.field(9, dtype=ti.f32, shape=(nx, ny))
