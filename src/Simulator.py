@@ -12,7 +12,6 @@ from Initialize_Object import *
 from Swap import *
 from Pixels import updating_pixels
 from Zou_he_inlet import *
-from Zero_Gradient_Outlet import *
 from TRT_and_Stream import *
 from CLI_header import *
 from Convergence_Checker import *

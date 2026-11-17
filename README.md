@@ -23,13 +23,11 @@ Creator: Ragghav Karunagaran - 16 yrs old
 ```bash
 # macOS / Linux
 ./install.sh
-source venvActivate.sh
+conda activate .venv_lbm
 
 # Windows
 install.bat
 ```
-
-On macOS/Linux, `install.sh` plays a terminal animation of flow past a cylinder while the packages install (about 37 s minimum). The full log goes to `install.log`. The animation is skipped when output is not a terminal (CI, piped output) or the window is too small. `source venvActivate.sh` plays a short flow-past-a-stenosis splash before activating the environment (set `LBM_NO_ANIM=1` to skip it).
 
 ### 2.3 Troubleshooting
 | Symptom | Cause | Fix |
@@ -57,11 +55,11 @@ python Simulator.py
 - `tau_s`, `tau_a`, magic parameter `Λ = 3/16`
 - Viscosity: `ν = (tau_s - 0.5)/3`
 ### 4.3 Boundary conditions
-| Boundary | Scheme | File | Notes                                      |
-|----------|--------|------|--------------------------------------------|
-| Inlet | Zou-He velocity | `Zou_he_inlet.py` | n/a                                        |
-| Outlet | Zero-gradient | `Zero_Gradient_Outlet.py` | Advanced Outlet implementation in progress |
-| Walls / obstacle | Half-way bounce-back | `TRT_and_Stream.py` | n/a                                        |
+| Boundary | Scheme                  | File                | Notes |
+|----------|-------------------------|---------------------|-------|
+| Inlet | Zou-He (fixed velocity) | `Zou_he_inlet.py`   | n/a   |
+| Outlet | Zou-He (fixed density)  | `Zou_he_outlet.py`  | n/a   |
+| Walls / obstacle | Half-way bounce-back    | `TRT_and_Stream.py` | n/a   |
 ### 4.4 Units & scaling
 - Lattice → physical conversion (`dx`, `dt`, `ρ`): TODO
 - Reynolds number definition: `Re = TODO`
