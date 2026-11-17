@@ -158,28 +158,33 @@ TODO: screenshots once the web app exists
 # Part B: Web App
 
 ## 9. Web App Overview
-- **Purpose:** TODO (one paragraph: who the web app is for and what it lets them do)
-- **Audience:** students, teachers and science-fair judges (primary); the author, for raw data and Expert detail *(from `PRODUCT.md`)*
-- **Status:** TODO (v1 backend; `web_v3` is the current front end; `web_v2` was rejected)
-- **Not clinical:** the app is educational and never presents results as medical. Keep the "approximate" / "rough estimate" labels.
-- **Hard rules** *(from `CLAUDE.md`)*:
-  - The solver in `src/` is not edited by the web code.
-  - The WebSocket / HTTP protocol is fixed; front ends must not change it.
-  - Streaming must cost under 2% of headless MLUPS.
-- **Version / date:** TODO
+- **Purpose:** An educational interface for exploring how a vessel narrowing affects simulated flow. Users can configure a blockage, watch the flow develop, review and compare recent runs, download run data, and read short lessons about the model and its results.
+- **Audience:** Students, teachers, and science-fair audiences is what it is made for, and expert settings and downloadable data are also available for users who want more detail.
+- **Status:** The current interface is `web_v3`, backed by the local Python service in `web/`. A browser opened on this computer can run the solver locally. A hosted or otherwise non-local copy uses the clearly labelled Demo instead; its results are simulated and are not solver output.
+- **Run history:** The app retains the three most recent runs. Completed local runs include a summary, flow profile, final fields, and a final flow image; Demo runs cannot be downloaded.
+- **Not clinical:** This is a simplified educational model, not a medical tool. Results are approximate trends, not patient-specific predictions; the interface labels estimates accordingly.
+- **Implementation constraints:** The web service wraps the solver in `src/` without editing it. The browser communicates with the service using its WebSocket/HTTP protocol, and frame streaming is designed not to slow the solver (the benchmark target is less than 2% MLUPS overhead).
 
 ## 10. Web Architecture
+In local live mode, the browser sends run settings and controls to the service, which launches one worker process for the run. The worker streams telemetry and flow frames while the solver runs; completed results are saved locally. In Demo mode, the browser uses an analytic stand-in and does not connect to the solver.
+
 ```
-Browser (web_v3, ES modules + WebGL2)
-   ^  WebSocket: JSON messages + binary frames
+Local live mode
+Browser (web_v3: ES modules; WebGL2 renders the flow)
+   ^  WebSocket: JSON control/telemetry + binary flow frames
+   |  HTTP: front-end files and completed-run downloads
    v
-web/server.py   127.0.0.1 only, one run at a time, serves the front end, keeps the last 3 runs
-   ^  pipe: JSON + frames, newest frame only
+web/server.py   binds to 127.0.0.1; serves the UI, manages one active run and keeps the last 3 runs
+   ^  private process pipe: JSON messages + frames; newest frame only
    v
-web/worker.py   one fresh process per run, runs the engine's step order
-   |  imports kernels, writes mask + settings
+web/worker.py   fresh process per run; configures settings, steps the solver, saves run outputs
+   |
    v
-src/            the solver (unchanged)
+src/            existing LBM solver; wrapped, not modified by the web app
+
+Demo mode (hosted/non-local browser, or explicit demo)
+Browser (web_v3) --> analytic stand-in in web_v3/js/demo.mjs
+                     no connection to web/server.py or src/
 ```
 
 ### 10.1 Files
