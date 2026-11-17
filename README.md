@@ -334,7 +334,6 @@ TODO (confirm field lists against `web/server.py` when the protocol is next touc
 
 ## 16. Front End (`web_v3`)
 - **Stack:** native ES modules, WebGL2 and CSS. No build step; served as static files.
-- **Design language:** HybriDock-Pep (see `DESIGN.md`, `PRODUCT.md`, `.impeccable/`).
 - **Screens:**
   | Screen | Job |
   |--------|-----|
