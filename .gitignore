@@ -224,3 +224,4 @@ docs/
 # macOS / JetBrains
 .DS_Store
 .idea/
+graphify-out/

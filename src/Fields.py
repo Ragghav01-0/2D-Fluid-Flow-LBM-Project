@@ -2,8 +2,10 @@ import taichi as ti
 ti.init(arch=ti.cpu)
 
 # Lattice dimensions
-nx = 256
-ny = 64 #191
+nx_preBuffer = 1024
+
+nx = nx_preBuffer + 60
+ny = 256
 
 # discrete velocities(f) + buffers, density(rho) and velocity(u)
 f = ti.Vector.field(9, dtype=ti.f32, shape=(nx, ny))
@@ -37,9 +39,7 @@ uy = 0.0
 # Zou-He Outlet parameters
 rho_out = 1.0
 
-
 step = ti.field(dtype=ti.i32, shape=())
-
 
 # TRT parameters
 w0 = 4.0 / 9.0
@@ -86,9 +86,17 @@ avg_mlups = 0
 log_count = 0
 running = True
 
-#Convergence check Variables
+# Velocity check (log line only, no longer a stop condition)
 tolerance = 1e-5
 converged = False
+
+# Plateau stop rule on (dp, WSS)
+ramp_steps = 1500        # inlet ramp length (used by Zou_he_inlet)
+check_interval = 1000    # steps between dp/WSS measurements
+plateau_window = 10      # last N checks (10,000 steps)
+plateau_tol = 1e-3
+min_steps = 20000
+max_steps = 600000       # cap: run is flagged NOT converged
 
 # Reynolds number, kinematic viscosity, tau - uncomment if using SRT collision kernel
 u_mean = (2.0/3.0) * ux_target

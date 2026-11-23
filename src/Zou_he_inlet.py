@@ -3,7 +3,7 @@ from Initialize_Object import mask
 
 @ti.kernel
 def zou_he_inlet():
-    ramp_time = 1500.0
+    ramp_time = ti.cast(ramp_steps, ti.f32)
     ux = ux_target
 
     if step[None] < ramp_time:

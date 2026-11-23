@@ -23,28 +23,29 @@ Creator: Ragghav Karunagaran - 16 yrs old
 ```bash
 # macOS / Linux
 ./install.sh
-conda activate .venv_lbm
+source run.sh
 
 # Windows
 install.bat
+run.bat
 ```
 
 ### 2.3 Troubleshooting
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| `No module named 'taichi'` | venv not activated | `source venvActivate.sh` |
-| `taichi==1.7.4` fails to install | Python newer than 3.12 | Use Python 3.12 or older |
-| `Error Code: 1` (warning) | Speed `u2 > 0.16` after step 3000, Mach limit exceeded | Lower inlet velocity |
+| Symptom | Cause | Fix                                                            |
+|---------|-------|----------------------------------------------------------------|
+| `No module named 'taichi'` | venv not activated | `source run.sh (or run.bat)`                                   |
+| `taichi==1.7.4` fails to install | Python newer than 3.12 | Use Python 3.12 or older                                       |
+| `Error Code: 1` (warning) | Speed `u2 > 0.16` after step 3000, Mach limit exceeded | Lower inlet velocity                                           |
 | `Error Code: 2` (stops) | Negative distribution populations (`f < -1e-3`) | Same as above; check the `Location` printed to find the origin |
-| `Error Code: 3` (warning) | Density outside 0.6–1.8 after step 3000 | Lower inlet velocity; check boundary setup |
-| `Error Code: 4` (stops) | NaN in velocity, simulation diverged | Lower inlet velocity or raise viscosity (relaxation time) |
+| `Error Code: 3` (warning) | Density outside 0.6–1.8 after step 3000 | Lower inlet velocity; check boundary setup                     |
+| `Error Code: 4` (stops) | NaN in velocity, simulation diverged | Lower inlet velocity or raise viscosity (relaxation time)      |
 
 ## 3. Running the Solver
 ```bash
 cd src
 python Simulator.py
 ```
-- Select CPU/GPU: `ti.init(arch=type your choice here)` in `Simulator.py and Fields.py`
+- Select CPU/GPU: `ti.init(arch= ~type either ti.cpu or ti.gpu~ )` in `Simulator.py and Fields.py`
 - Outputs: `Results/Result_1`
 - Stop conditions: convergence (`tolerance`), instability (error codes 2, 4)
 
@@ -100,7 +101,7 @@ Stability limits: Mach `u² < 0.16`, `0.6 < ρ < 1.8`, `τ > 0.5`. All parameter
 ### 6.5 Known limitations
 - Weakly compressible fluid assumption
 - Newtonian Fluid
-- constrained by python's overhead memory management, despite hardware acceleration using taichi.
+- Constrained by python's overhead memory management, despite hardware acceleration using taichi.
 
 ## 7. Performance
 | Backend | Grid       | MLUPS | Hardware                 |

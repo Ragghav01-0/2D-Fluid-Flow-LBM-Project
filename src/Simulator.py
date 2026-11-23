@@ -10,12 +10,14 @@ from Initialization import initial_fluid
 from Macro import macro_update
 from Initialize_Object import *
 from Swap import *
-from Pixels import updating_pixels
+# from Pixels import updating_pixels
 from Zou_he_inlet import *
 from TRT_and_Stream import *
 from CLI_header import *
 from Convergence_Checker import *
 from Zou_he_outlet import *
+from Measurements import *
+from Record import *
 
 # Simulation Metric Variables Initialization
 start = timePy.perf_counter()
@@ -31,7 +33,13 @@ CLI_header()
 
 sysreport = False
 
-while not converged:
+# Measurement setup (mask is static, so severity is fixed for the run)
+severity, throat = severity_from_mask(mask.to_numpy()[:nx_preBuffer])
+use_peak = severity > 0
+history = []     # (step, dp, wss)
+status = "RUNNING"
+
+while True:
 
     # EDS loop
     if is_unstable[None] == 1 and not sysreport:
@@ -63,6 +71,7 @@ while not converged:
         print(f" {Fore.YELLOW}Discrete Distribution Function Populations (f): {err_f_pop}")
         print("\n" + Fore.RED + Style.BRIGHT + "="*50)
         running = False
+        status = "UNSTABLE"
         break
 
     stream()
@@ -94,16 +103,28 @@ while not converged:
         prev_time = timePy.perf_counter()
         log_count += 1
 
-        if rel_change < tolerance:
-            print(f"Simulation Converged Successfully at step: {step[None]}")
-            converged = True
+    # dp and WSS plateau stopping check or criterion
+    if step[None] > ramp_steps and step[None] % check_interval == 0:
+        dp_now, wss_now = measure(use_peak)
+        history.append((step[None], dp_now, wss_now))
+        print(f"[Check] step {step[None]} | dp: {dp_now:.6e} | WSS({'peak' if use_peak else 'mean'}): {wss_now:.6e}")
+        if has_plateaued(history, plateau_window, plateau_tol, min_steps):
+            status = "CONVERGED"
+            print(f"Simulation Converged (dp and WSS plateau) at step: {step[None]}")
             break
+
+    if step[None] >= max_steps:
+        status = "NOT_CONVERGED_CAP"
+        print("\n" + Fore.RED + Style.BRIGHT + "=" * 50)
+        print(Fore.RED + Style.BRIGHT + f"!! NOT converged, cap reached ({max_steps} steps) - do not use as data")
+        print(Fore.RED + Style.BRIGHT + "=" * 50)
+        break
 
     step[None] += 1
 
 total_run_time = timePy.perf_counter() - start
 
-if error_code[None] == 0:
+if error_code[None] == 0 and log_count:
     # Simulation Summary Reporter
     avg_mlups /= log_count
     print("=" * 40 + " Simulation Finished Successfully " + "=" * 40)
@@ -114,37 +135,4 @@ if error_code[None] == 0:
     print(f"[Timer] Simulation Time: {total_run_time:.2f}")
     print("=" * 90)
 
-rho_np = rho.to_numpy()
-col = rho_np[nx - 1, 1:ny - 1]   # last column, fluid rows only
-print("rho at outlet: min", col.min(), "max", col.max())
-print("any NaN:", np.isnan(rho_np).any())
-
-v1000 = []
-
-for i in ti.static(range(ny)):
-    v1000.append(round(u[nx - 24, i][0], 9))
-
-velocity1 = np.array(v1000)
-np.savetxt("../Results/Result_1.csv", velocity1, delimiter=",", fmt="%f")
-
-rho_np = rho.to_numpy()
-u_np = u.to_numpy()            # expected shape (nx, ny, 2)
-ux_np = u_np[..., 0]
-
-rows = slice(1, ny - 1)        # fluid rows only (skip the two wall rows)
-
-def mass_flux(x):
-    return float(np.sum(rho_np[x, rows] * ux_np[x, rows]))
-
-# --- mass flux at several columns ---
-for x in (5, 50, 100, 150, 200, nx - 6):
-    print(f"x={x:4d}  mass flux = {mass_flux(x):.6f}")
-
-q_in, q_out = mass_flux(5), mass_flux(nx - 6)
-print("flux mismatch (%):", 100 * abs(q_in - q_out) / abs(q_in))
-
-# --- centerline density ---
-mid = ny // 2                                    # 32 when ny = 64
-cl = 0.5 * (rho_np[:, mid - 1] + rho_np[:, mid]) # average of the two middle fluid rows
-for x in (5, 50, 100, 150, 200, 240, nx - 1):
-    print(f"x={x:4d}  centerline rho = {cl[x]:.6f}")
+save_record(status, history, use_peak, severity, total_run_time)
