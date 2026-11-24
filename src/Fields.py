@@ -1,11 +1,22 @@
 import taichi as ti
 ti.init(arch=ti.cpu)
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--tau_s", type=float, default=0.884)
+parser.add_argument("--ny", type=int, default=256)
+parser.add_argument("--ux", type=float, default=0.05)
+args, _ = parser.parse_known_args()
+
+assert 0.7 <= args.tau_s <= 1.5, f" tau_s is {args.tau_s}, which is below the limit and would cause NaN crashes"
+assert 0.01 <= args.ux <= 0.1, f" ux inlet speed is {args.ux}, which is below the limit and would cause NaN crashes"
+
 # Lattice dimensions
-nx_preBuffer = 1024
+ny = args.ny
+nx_preBuffer = 4 * ny
 
 nx = nx_preBuffer + 60
-ny = 256
+
 
 # discrete velocities(f) + buffers, density(rho) and velocity(u)
 f = ti.Vector.field(9, dtype=ti.f32, shape=(nx, ny))
@@ -33,7 +44,7 @@ mask = ti.field(dtype=ti.f32, shape=(nx, ny))
 pixels = ti.Vector.field(3, dtype=ti.f32, shape=(nx, ny))
 
 # Zou-He Inlet parameters
-ux_target = 0.05
+ux_target = args.ux
 uy = 0.0
 
 # Zou-He Outlet parameters
@@ -45,7 +56,7 @@ step = ti.field(dtype=ti.i32, shape=())
 w0 = 4.0 / 9.0
 w_straight = 1.0 / 9.0
 w_diag = 1.0 / 36.0
-tau_s = 0.884
+tau_s = args.tau_s
 lambda_magic = 3.0 / 16.0
 tau_a = 0.5 + lambda_magic / (tau_s - 0.5)
 
@@ -101,4 +112,4 @@ max_steps = 600000       # cap: run is flagged NOT converged
 # Reynolds number, kinematic viscosity, tau - uncomment if using SRT collision kernel
 u_mean = (2.0/3.0) * ux_target
 lattice_viscosity = ( (1.0/3.0) * (tau_s - 0.5))
-Re = (2 * circle_radius * u_mean) / lattice_viscosity
+Re = ((ny - 2) * u_mean) / lattice_viscosity  # H = fluid rows between the two walls

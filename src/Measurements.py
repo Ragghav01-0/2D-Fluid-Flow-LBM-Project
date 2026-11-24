@@ -67,3 +67,43 @@ def has_plateaued(history, window=10, tol=1e-3, min_step=20000):
         return False
     s = plateau_spread(history, window)
     return s is not None and s[0] < tol and s[1] < tol
+
+
+def poiseuille_error(ux, peak):
+    ux = np.asarray(ux, dtype=np.float64)
+    ny = len(ux)
+    y = np.arange(ny)
+    center = (ny - 1) / 2
+    R = (ny - 2) / 2.0
+    analytical = peak * (1.0 - ((y - center) / R) ** 2)
+
+    num, analytical = ux[1:-1], analytical[1:-1]  # skip the two wall rows
+    l2 = np.linalg.norm(num - analytical) / np.linalg.norm(analytical)
+    max_abs = np.max(np.abs(num - analytical))
+    mid = len(num) // 2
+    centerline_pct = abs(num[mid] - analytical[mid]) / analytical[mid] * 100
+    return float(l2), float(max_abs), float(centerline_pct)
+
+def mass_flux_balance(rho, mask, ux, x_in=5, x_out=None):
+    rho = np.asarray(rho, dtype=np.float64)
+    ux = np.asarray(ux, dtype=np.float64)
+    nx = rho.shape[0]
+    if x_out is None:
+        x_out = nx - 6
+    assert 0 < x_in < x_out < nx - 1, "x_in is out of the simulations bounds"
+
+    q = [float((rho[x] * ux[x])[mask[x] == 0].sum()) for x in (x_in, x_out)]
+    return q[0], q[1], (q[0] - q[1]) / q[0]
+
+
+def poiseuille_shape_error(ux):
+    ux = np.asarray(ux, dtype=np.float64)
+    ny = len(ux)
+    y = np.arange(ny)
+    center = (ny - 1) / 2
+    R = (ny - 2) / 2.0
+    shape = (1.0 - ((y - center) / R) ** 2)[1:-1]   # skip the two wall rows
+    num = ux[1:-1]
+    amp = num @ shape / (shape @ shape)              # best-fit peak speed
+    l2 = np.linalg.norm(num - amp * shape) / np.linalg.norm(amp * shape)
+    return float(l2), float(amp)

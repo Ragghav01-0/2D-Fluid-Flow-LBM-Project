@@ -1,43 +1,25 @@
+import glob
 import numpy as np
 import matplotlib.pyplot as plt
-from Fields import *
-from Zou_he_inlet import ux_target
+from Fields import ux_target
+from Measurements import poiseuille_error
 
-v1 = np.loadtxt('../Results/Result_1.csv', delimiter=',')
-ny_value = len(v1)
-height = np.arange(ny_value)
+# Newest profile written by Record.save_record (one header line, then ux(y))
+path = sorted(glob.glob('../Results/profile_*.csv'))[-1]
+v1 = np.loadtxt(path, delimiter=',', skiprows=1)
+height = np.arange(len(v1))
 
-# Analytical Solution
-y = height
-center = (ny_value - 1) / 2
-R = (ny_value - 2) / 2.0
+l2, max_abs, centerline_pct = poiseuille_error(v1, ux_target)
+print("--- LBM Poiseuille Flow Validation Report ---")
+print(f"L2 Relative Error:       {l2:.5f} ({l2 * 100:.2f}%)")
+print(f"Maximum Absolute Error:  {max_abs:.5f} lattice units")
+print(f"Centerline Deviation:    {centerline_pct:.2f}%")
 
-max = 1.5 * ux_target
-analytical = max * (1.0 - ((y - center) / R) ** 2)
-
-print("=" * 90)
-# Assuming v1 (simulation) and velocity_analytical are numpy arrays of the same length
-u_num = v1[1:-1]
-u_ana = analytical[1:-1]
-
-# 1. L2 Relative Error Norm
-l2_error = np.linalg.norm(u_num - u_ana) / np.linalg.norm(u_ana)
-
-# 2. Maximum Absolute Error (L_inf)
-max_abs_error = np.max(np.abs(u_num - u_ana))
-
-# 3. Centerline Error Percentage
-centerline_idx = len(u_num) // 2
-centerline_error_pct = (abs(u_num[centerline_idx] - u_ana[centerline_idx]) / u_ana[centerline_idx]) * 100
-
-print(f"--- LBM Poiseuille Flow Validation Report ---")
-print(f"L2 Relative Error:       {l2_error:.5f} ({l2_error * 100:.2f}%)")
-print(f"Maximum Absolute Error:  {max_abs_error:.5f} lattice units")
-print(f"Centerline Deviation:    {centerline_error_pct:.2f}%")
+center, R = (len(v1) - 1) / 2, (len(v1) - 2) / 2.0
+analytical = ux_target * (1.0 - ((height - center) / R) ** 2)
 
 plt.plot(v1, height, color='black', ls="-", label="LBM")
-plt.plot( analytical, height, color='g', ls="-.", label="Analytical Velocity Profile")
-
+plt.plot(analytical, height, color='g', ls="-.", label="Analytical Velocity Profile")
 plt.xlabel("Velocity (Lattice Units)")
 plt.ylabel("Height (Lattice Units)")
 plt.legend(loc="upper right")

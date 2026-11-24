@@ -6,6 +6,8 @@ REM   run.bat solver   terminal solver, no GUI
 setlocal
 cd /d "%~dp0"
 set "CMD=%~1"
+set "ARGS="
+for /f "tokens=1,*" %%a in ("%*") do set "ARGS=%%b"
 if "%CMD:~0,2%"=="--" set "CMD=%CMD:~2%"
 if /i "%CMD%"=="web" goto env
 if /i "%CMD%"=="demo" goto env
@@ -29,7 +31,7 @@ if errorlevel 1 goto noenv
 
 if /i "%CMD%"=="solver" (
     cd src
-    "%PY%" Simulator.py
+    "%PY%" Simulator.py %ARGS%
     exit /b %errorlevel%
 )
 

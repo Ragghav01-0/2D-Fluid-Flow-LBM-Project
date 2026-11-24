@@ -2,13 +2,14 @@
 # One launcher after ./install.sh. Finds the Python environment itself (no activate step).
 #   ./run.sh web      web UI in the background, opens the browser
 #   ./run.sh demo     web UI in Demo mode (no solver)
-#   ./run.sh solver   terminal solver, no GUI
+#   ./run.sh solver [--ny N --tau_s T --ux U]   terminal solver, no GUI
 #   ./run.sh stop     stop the background web server
 cd "$(dirname "$0")" || exit 1
 CMD="${1#--}"
 
 usage() { echo "Usage: ./run.sh web | demo | solver | stop" >&2; exit 1; }
 case "$CMD" in web|demo|solver|stop) ;; *) usage ;; esac
+shift  # the rest ("--ny 128" etc.) goes to the solver
 
 # Environment: pip venv, then the conda env of the same name, then a plain .venv.
 PY=""
@@ -37,5 +38,5 @@ case "$CMD" in
   web)    exec ./open_website.sh ;;
   demo)   exec ./open_website.sh --demo ;;
   stop)   exec ./open_website.sh stop ;;
-  solver) cd src && exec "$PY" Simulator.py ;;
+  solver) cd src && exec "$PY" Simulator.py "$@" ;;
 esac
