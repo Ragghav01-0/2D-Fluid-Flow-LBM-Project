@@ -6,10 +6,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--tau_s", type=float, default=0.884)
 parser.add_argument("--ny", type=int, default=256)
 parser.add_argument("--ux", type=float, default=0.05)
+parser.add_argument("--severity", type=float, default=0.5)
 args, _ = parser.parse_known_args()
 
 assert 0.7 <= args.tau_s <= 1.5, f" tau_s is {args.tau_s}, which is below the limit and would cause NaN crashes"
 assert 0.01 <= args.ux <= 0.1, f" ux inlet speed is {args.ux}, which is below the limit and would cause NaN crashes"
+assert 0.0 <= args.ux <= 0.75, f" severity is {args.ux}, which would cause extreme values of ux velocity or density"
 
 # Lattice dimensions
 ny = args.ny
@@ -79,10 +81,10 @@ err_f_pop = ti.field(dtype=ti.f32, shape=(9,))
 cx, cy = 93, 93
 circle_radius = 30
 plaque_type = "eccentric"
-center = int(nx/3)
-plaque_length = 450
-h_max = 0.5 * ny # Change the constant to change plaque severity
-spread = 120
+center = int(nx_preBuffer/3)
+plaque_length = 0.44 * nx_preBuffer
+h_max = args.severity * (ny -2) # Change the constant to change plaque severity
+spread = 0.12 * nx_preBuffer
 
 # Convergence Checker
 u_mag = ti.field(dtype=ti.f32, shape=(nx, ny))

@@ -23,7 +23,7 @@ Creator: Ragghav Karunagaran - 16 yrs old
 ```bash
 # macOS / Linux
 ./install.sh
-source run.sh
+./run.sh solver # This runs with the default parameters - you can change them through --ny, --tau_s, --ux
 
 # Windows
 install.bat
@@ -42,12 +42,14 @@ run.bat
 
 ## 3. Running the Solver
 ```bash
-cd src
-python Simulator.py
+./run.sh solver # User can change the parameters (ux inlet speed, tau_s for viscosity, ny for # of rows) using a flag
+
+# For windows
+run.bat
 ```
 - Select CPU/GPU: `ti.init(arch= ~type either ti.cpu or ti.gpu~ )` in `Simulator.py and Fields.py`
-- Outputs: `Results/Result_1`
-- Stop conditions: convergence (`tolerance`), instability (error codes 2, 4)
+- Outputs: `Results/runs.csv, history_<run_id>.csv, profile_<run_id>.csv`
+- Stop conditions: WSS and Δp plateau: 10 checks with each being 1000 steps apart. Or the solver stops if steps > 600,000 steps.
 
 ## 4. Governing Equations & Numerics
 ### 4.1 Lattice
@@ -66,13 +68,13 @@ python Simulator.py
 - Reynolds number definition: `Re = TODO`
 
 ## 5. Parameters
-| Name | Symbol | Value (default) | Where | Meaning |
-|------|--------|-----------------|-------|---------|
-| `nx, ny` | | 1024, 256       | `Fields.py` | Grid size |
-| `tau_s` | τ | 0.884           | `Fields.py` | Relaxation time |
-| `ux_target` | u_in | 0.05            | `Fields.py` | Inlet velocity |
-| `tolerance` | | 1e-5            | `Fields.py` | Convergence threshold |
+| Name | Symbol | Value (default)  | Where | Meaning |
+|------|--------|------------------|-------|---------|
+| `nx, ny` | | 4 * ny + 60, 256 | `Fields.py` | Grid size |
+| `tau_s` | τ | 0.884            | `Fields.py` | Relaxation time |
+| `ux_target` | u_in | 0.05             | `Fields.py` | Inlet velocity |
 
+There is a +60 nodes buffer for nx as an outlet buffer. But all results are obtained from the original nx value.
 Stability limits: Mach `u² < 0.16`, `0.6 < ρ < 1.8`, `τ > 0.5`. All parameters must be under the given range for the simulator to run smoothly, and out-of-range values that occur during the simulation run will be detected by the Error Detection System (EDS).
 
 ## 6. Validation
@@ -116,9 +118,8 @@ examples/   validation / demo cases
 Results/    simulation output (gitignored)
 ```
 ## 9. Current Progress
-- Implementing a Web-based, interactive platform to be accessible for non-coders.
+- Implementing a Web-based, interactive platform to be accessible for non-coders. A demo with sample data and results is deployed - link above at 1. Overview.
 - Validating Von Karman Vortex Shedding according to DFG Case 2D-2 at Re = 100.
-- Implementing Zou-He Outlet BC, with fixed pressure.
 
 ## 10. Gallery
 Put images in `images/` and replace each TODO with `![caption](images/file.png)`.
@@ -126,19 +127,6 @@ Put images in `images/` and replace each TODO with `![caption](images/file.png)`
 ### 10.1 Validation
 ![Poiseuille validation: LBM vs analytical velocity profile](poiseuille_validation.png)
 
-### 10.2 Von Kármán vortex street
-TODO: velocity / vorticity snapshot at Re = 100
-
-### 10.3 Stenosis / plaque
-TODO: velocity field through the stenosis
-
-### 10.4 Terminal & installer
-TODO: screenshot of the CLI header and install animation
-
-### 10.5 Web app
-TODO: screenshots once the web app exists
-
----
 
 ## References
 1. Krüger et al., *The Lattice Boltzmann Method: Principles and Practice*, 2017.

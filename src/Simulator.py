@@ -14,7 +14,6 @@ from Swap import *
 from Zou_he_inlet import *
 from TRT_and_Stream import *
 from CLI_header import *
-from Convergence_Checker import *
 from Zou_he_outlet import *
 from Measurements import *
 from Record import *
@@ -91,7 +90,7 @@ while True:
     #    gui.show()
 
     if step[None] > 0 and step[None] % interval == 0:
-        Convergence_Checker()
+        # Convergence_Checker()
         rel_change = max_diff[None] / (max_vel[None] + 1e-14)
 
         elapsed = timePy.perf_counter() - prev_time
