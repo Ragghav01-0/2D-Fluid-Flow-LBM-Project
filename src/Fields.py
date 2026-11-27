@@ -6,12 +6,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--tau_s", type=float, default=0.884)
 parser.add_argument("--ny", type=int, default=256)
 parser.add_argument("--ux", type=float, default=0.05)
-parser.add_argument("--severity", type=float, default=0.5)
-args, _ = parser.parse_known_args()
+parser.add_argument("--severity", type=float, default=0.0)
+args = parser.parse_args()
 
 assert 0.7 <= args.tau_s <= 1.5, f" tau_s is {args.tau_s}, which is below the limit and would cause NaN crashes"
 assert 0.01 <= args.ux <= 0.1, f" ux inlet speed is {args.ux}, which is below the limit and would cause NaN crashes"
-assert 0.0 <= args.ux <= 0.75, f" severity is {args.ux}, which would cause extreme values of ux velocity or density"
+assert 0.0 <= args.severity <= 0.75, f" severity is {args.severity}, which would cause extreme values of ux velocity or density"
 
 # Lattice dimensions
 ny = args.ny

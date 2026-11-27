@@ -22,6 +22,7 @@ def measure(peak):
 
 # Saves the run: the (step, dp, wss) history and one line in runs.csv
 def save_record(status, history, use_peak, severity, total_run_time):
+    os.makedirs("../Results", exist_ok=True)
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     nan = float("nan")
 
@@ -52,6 +53,13 @@ def save_record(status, history, use_peak, severity, total_run_time):
     q_in, q_out, flux_imbalance = mass_flux_balance(rho_crop, mask_crop, ux_crop)
     mean_rho = float(rho_crop[mask_crop == 0].mean())
     inlet_rho = float(rho_crop[5][mask_crop[5] == 0].mean())
+    x0,x1 = 5, nx_preBuffer - 6
+    ux_fluid = np.where(mask_crop[x0:x1] == 0, ux_crop[x0:x1], -np.inf)
+
+    flat = np.argmax(ux_fluid)
+    ix, iy = np.unravel_index(flat, ux_fluid.shape)
+    peak_ux = float(ux_fluid[ix, iy])
+    peak_x = int(ix + x0)
 
     try:
         commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL, text=True).strip()
@@ -62,11 +70,11 @@ def save_record(status, history, use_peak, severity, total_run_time):
 
     header = ("run_id,status,steps,nx_preBuffer,ny,tau_s,ux_target,severity,wss_kind,dp,wss,dp_spread,wss_spread,window,tol,run_time_s,"
               "commit,precision,mean_rho,inlet_rho,flux_imbalance,"
-              "profile_l2,profile_max_err,centerline_err_pct,shape_l2,fit_peak")
+              "profile_l2,profile_max_err,centerline_err_pct,shape_l2,fit_peak,peak_ux,peak_x")
     line = (f"{run_id},{status},{step[None]},{nx_preBuffer},{ny},{tau_s},{ux_target},{severity},{wss_kind},"
             f"{final_dp},{final_wss},{spread_dp},{spread_wss},{plateau_window},{plateau_tol},{total_run_time:.2f},"
             f"{commit},{rho_crop.dtype},{mean_rho},{inlet_rho},{flux_imbalance},"
-            f"{l2},{max_abs},{centerline_pct},{shape_l2},{fit_peak}")
+            f"{l2},{max_abs},{centerline_pct},{shape_l2},{fit_peak},{peak_ux},{peak_x}")
 
     # An older file with a different header would misalign the columns, so set it aside
     runs_path = "../Results/runs.csv"
@@ -84,9 +92,13 @@ def save_record(status, history, use_peak, severity, total_run_time):
     wss_bot, wss_top = WSS(rho_crop, mask_crop, ux_crop, lattice_viscosity)
     print(f"RESULTS ({status})")
     print(f"  Pressure drop : {final_dp:.6g}")
-    print(f"  WSS bottom    : {wss_bot[5: nx_preBuffer - 6].mean():.6g}  (mean)")
-    print(f"  WSS top       : {wss_top[5: nx_preBuffer - 6].mean():.6g}  (mean)")
+    print(f"  WSS bottom    : {wss_bot[5: nx_preBuffer - 6].mean():.5e}  (mean)")
+    print(f"  WSS top       : {wss_top[5: nx_preBuffer - 6].mean():.5e}  (mean)")
     print(f"  Flux imbalance: {flux_imbalance:.3%}  (inlet vs outlet)")
+    print(f"  Peak ux       : {peak_ux:.3} (at x={peak_x})")
     if severity <= 1e-9:
         print(f"  Profile L2    : {l2:.3%}  (shape only {shape_l2:.3%}, fitted peak {fit_peak:.5f})")
     print(f"  Saved to ../Results/runs.csv (run {run_id})")
+
+    uy_crop = u.to_numpy()[:nx_preBuffer, :, 1]
+    np.savez_compressed(f"../Results/fields_{run_id}.npz", rho=rho_crop, ux=ux_crop, uy=uy_crop, mask=mask_crop)

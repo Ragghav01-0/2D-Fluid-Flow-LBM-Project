@@ -122,7 +122,6 @@ Results/    simulation output (gitignored)
 - Validating Von Karman Vortex Shedding according to DFG Case 2D-2 at Re = 100.
 
 ## 10. Gallery
-Put images in `images/` and replace each TODO with `![caption](images/file.png)`.
 
 ### 10.1 Validation
 ![Poiseuille validation: LBM vs analytical velocity profile](poiseuille_validation.png)

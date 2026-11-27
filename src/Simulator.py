@@ -10,7 +10,7 @@ from Initialization import initial_fluid
 from Macro import macro_update
 from Initialize_Object import *
 from Swap import *
-# from Pixels import updating_pixels
+from Pixels import updating_pixels
 from Zou_he_inlet import *
 from TRT_and_Stream import *
 from CLI_header import *
@@ -38,25 +38,12 @@ use_peak = severity > 0
 history = []     # (step, dp, wss)
 status = "RUNNING"
 
+print(f"The severity is {severity}")
+
 while True:
 
     # EDS loop
-    if is_unstable[None] == 1 and not sysreport:
-        print("\n" + Fore.RED + Style.BRIGHT + "="*50)
-        print(Fore.RED + Style.BRIGHT + "!! SIMULATION INSTABILITY DETECTED !!")
-        print("\n" + Fore.RED + Style.BRIGHT + "="*50)
-        print(f" {Fore.YELLOW}Error Code: {error_code[None]}")
-        print(f" {Fore.YELLOW}Time: {step[None]}")
-        print(f" {Fore.YELLOW}Location:  (x={err_x[None]}, y={err_y[None]})")
-        print(f" {Fore.YELLOW}Density: {err_rho[None]:.6f}")
-        print(f" {Fore.YELLOW}Speed (u2): {err_u2[None]:.6f}")
-        print(f" {Fore.YELLOW}Speed (ux): {err_ux[None]:.6f}")
-        print(f" {Fore.YELLOW}Speed (uy): {err_uy[None]:.6f}")
-        print(f" {Fore.YELLOW}Discrete Distribution Function Populations (f): {err_f_pop}")
-        print("\n" + Fore.RED + Style.BRIGHT + "="*50)
-        sysreport = True
-
-    if error_code[None] == 2 or error_code[None] == 4:   
+    if error_code[None] != 0:
         print("\n" + Fore.RED + Style.BRIGHT + "="*50)
         print(Fore.RED + Style.BRIGHT + "!! SIMULATION INSTABILITY DETECTED - STOPPING SIMULATION")
         print("\n" + Fore.RED + Style.BRIGHT + "="*50)
@@ -107,7 +94,7 @@ while True:
         dp_now, wss_now = measure(use_peak)
         history.append((step[None], dp_now, wss_now))
         print(f"[Check] step {step[None]} | dp: {dp_now:.6e} | WSS({'peak' if use_peak else 'mean'}): {wss_now:.6e}")
-        if has_plateaued(history, plateau_window, plateau_tol, min_steps):
+        if has_plateaued(history, plateau_window, plateau_tol, min_steps) and error_code[None] == 0:
             status = "CONVERGED"
             print(f"Simulation Converged (dp and WSS plateau) at step: {step[None]}")
             break
@@ -123,7 +110,7 @@ while True:
 
 total_run_time = timePy.perf_counter() - start
 
-if error_code[None] == 0 and log_count:
+if status=="CONVERGED" and log_count:
     # Simulation Summary Reporter
     avg_mlups /= log_count
     print("=" * 40 + " Simulation Finished Successfully " + "=" * 40)
